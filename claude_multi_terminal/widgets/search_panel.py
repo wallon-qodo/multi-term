@@ -418,10 +418,10 @@ class SearchPanel(Vertical):
             SelectableRichLog
         )
 
-        # Scroll to the line
+        # Scroll to the line with smooth animation
         # Calculate the target scroll position
         target_scroll = max(0, result.line_idx - 5)  # Show match with 5 lines context
-        output.scroll_to(y=target_scroll, animate=False)
+        output.scroll_to(y=target_scroll, animate=True, duration=0.25, easing="in_out_cubic")
 
         # Update current match highlight
         await self._highlight_current_match(result)

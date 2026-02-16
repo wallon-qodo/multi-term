@@ -1029,9 +1029,9 @@ class SelectableRichLog(RichLog):
         """Toggle auto-scroll on/off."""
         self.auto_scroll_enabled = not self.auto_scroll_enabled
 
-        # If re-enabling and we're not already at bottom, scroll to bottom
+        # If re-enabling and we're not already at bottom, scroll to bottom with smooth animation
         if self.auto_scroll_enabled:
-            self.scroll_end(animate=False)
+            self.scroll_end(animate=True, duration=0.3, easing="out_cubic")
 
         # Show notification
         status = "enabled" if self.auto_scroll_enabled else "disabled"
@@ -1053,8 +1053,8 @@ class SelectableRichLog(RichLog):
 
     def on_mouse_scroll_down(self, event: events.MouseScrollDown) -> None:
         """Detect manual scroll down - re-enable auto-scroll if at bottom."""
-        # Perform the scroll action
-        self.scroll_relative(y=event.y, animate=False)
+        # Perform the scroll action with smooth animation
+        self.scroll_relative(y=event.y, animate=True, duration=0.15, easing="in_out_cubic")
 
         # If user scrolled to bottom, re-enable auto-scroll
         if self._user_scrolled_up and self._is_at_bottom():
@@ -1070,8 +1070,8 @@ class SelectableRichLog(RichLog):
 
     def on_mouse_scroll_up(self, event: events.MouseScrollUp) -> None:
         """Detect manual scroll up - disable auto-scroll."""
-        # Perform the scroll action
-        self.scroll_relative(y=-event.y, animate=False)
+        # Perform the scroll action with smooth animation
+        self.scroll_relative(y=-event.y, animate=True, duration=0.15, easing="in_out_cubic")
 
         # If user scrolls up, mark as manual scroll and disable auto-scroll
         if not self._is_at_bottom():
@@ -1086,11 +1086,12 @@ class SelectableRichLog(RichLog):
                     )
 
     def write(self, content, width=None, expand=False, shrink=True, scroll_end=None, animate=False):
-        """Override write to implement auto-scroll behavior."""
+        """Override write to implement auto-scroll behavior with smooth animation."""
         super().write(content, width=width, expand=expand, shrink=shrink, scroll_end=scroll_end, animate=animate)
 
         # Auto-scroll if enabled and user hasn't manually scrolled up
+        # Use smooth animation for a more pleasant experience
         if self.auto_scroll_enabled and not self._user_scrolled_up:
-            self.scroll_end(animate=False)
+            self.scroll_end(animate=True, duration=0.2, easing="out_cubic")
 
         return self

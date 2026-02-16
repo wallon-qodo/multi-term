@@ -159,8 +159,8 @@ class EnhancedOutputPane(VerticalScroll):
                 await self.mount(code_widget)
                 self._content_widgets.append(code_widget)
 
-        # Scroll to bottom
-        self.scroll_end(animate=False)
+        # Scroll to bottom with smooth animation
+        self.scroll_end(animate=True, duration=0.2, easing="out_cubic")
 
     async def _render_plain_text(self, text: str) -> None:
         """
@@ -175,8 +175,8 @@ class EnhancedOutputPane(VerticalScroll):
         await self.mount(text_widget)
         self._content_widgets.append(text_widget)
 
-        # Scroll to bottom
-        self.scroll_end(animate=False)
+        # Scroll to bottom with smooth animation
+        self.scroll_end(animate=True, duration=0.2, easing="out_cubic")
 
     def get_plain_text(self) -> str:
         """

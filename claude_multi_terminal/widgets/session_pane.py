@@ -198,6 +198,16 @@ class SessionPane(Vertical):
     - Input field for commands
     """
 
+    class ContextMenuRequested(Message):
+        """Posted when session pane is right-clicked."""
+
+        def __init__(self, session_pane: "SessionPane", session_id: str, screen_x: int, screen_y: int) -> None:
+            super().__init__()
+            self.session_pane = session_pane
+            self.session_id = session_id
+            self.screen_x = screen_x
+            self.screen_y = screen_y
+
     DEFAULT_CSS = """
     SessionPane {
         border: heavy rgb(60,60,60);
@@ -664,6 +674,17 @@ class SessionPane(Vertical):
         input_widget = self.query_one(f"#input-{self.session_id}", CommandTextArea)
         input_widget.focus()
 
+    def on_mouse_down(self, event: events.MouseDown) -> None:
+        """Handle mouse clicks - detect right-click for context menu."""
+        # Right-click - show context menu
+        if event.button == 3:
+            # Calculate screen coordinates for context menu
+            screen_x = event.screen_x
+            screen_y = event.screen_y
+            self.post_message(self.ContextMenuRequested(self, self.session_id, screen_x, screen_y))
+            event.stop()
+            return
+
     def _handle_output(self, output: str) -> None:
         """
         Callback for PTY output.
@@ -757,8 +778,18 @@ class SessionPane(Vertical):
                 self._log("Skipping empty output")
                 return
 
-            # Update token count (rough estimate: 4 chars per token)
-            self._token_count += len(filtered_output) // 4
+            # Update token count (rough estimate: ~1 token per 4 chars)
+            # Use fractional counting and track remainder for better accuracy
+            if not hasattr(self, '_token_remainder'):
+                self._token_remainder = 0.0
+
+            char_count = len(filtered_output)
+            tokens_float = (char_count + self._token_remainder) / 4.0
+            tokens_added = int(tokens_float)
+            self._token_remainder = (char_count + self._token_remainder) % 4
+
+            self._token_count += tokens_added
+            self._log(f"Token count updated: {char_count} chars, +{tokens_added} tokens (remainder: {self._token_remainder}), total={self._token_count}")
 
             # Extract status information from output for real-time feedback
             status = self._extract_status_from_output(filtered_output)
@@ -767,17 +798,13 @@ class SessionPane(Vertical):
                 self._status_history.append(status)
                 self._log(f"Status update: {status}")
 
-            # Clear processing indicator on first real output
+            # Add newline on first output to separate from processing indicator
+            # Don't hide the indicator - let it continue showing metrics until completion
             if hasattr(self, '_has_processing_indicator') and self._has_processing_indicator:
-                # Hide the inline processing indicator
-                processing_widget = self.query_one(f"#processing-inline-{self.session_id}", Static)
-                processing_widget.remove_class("visible")
-                processing_widget.display = False
-                self._has_processing_indicator = False
-
-                # Add newline to move response text to next line
-                output_widget.write(Text("\n"))
-                self._log("Cleared processing indicator and added newline")
+                if not hasattr(self, '_first_output_received'):
+                    output_widget.write(Text("\n"))
+                    self._first_output_received = True
+                    self._log("Added newline after processing indicator, keeping it visible for metrics")
 
             # Convert ANSI codes to Rich Text for proper rendering
             # This handles colors, styles, and formatting from Claude's output
@@ -866,6 +893,10 @@ class SessionPane(Vertical):
             else:
                 tps_str = "0/s"
 
+            # Debug log every 10 frames
+            if self._animation_frame % 10 == 0:
+                self._log(f"Animation metrics: elapsed={elapsed:.1f}s, tokens={self._token_count}, tps={tps_str}")
+
             # Add streaming indicator with animated cursor
             cursor_frames = ["▌", "▐", "▌", " "]
             cursor = cursor_frames[self._animation_frame % len(cursor_frames)]
@@ -889,6 +920,19 @@ class SessionPane(Vertical):
             animation_text.append(" @ ", style="dim white")
             animation_text.append(tps_str, style="dim green")
             animation_text.append(")", style="dim white")
+
+            # Add cancel hint with pulsing animation
+            animation_text.append("  ", style="")
+            # Pulse the cancel button every 2 seconds
+            cancel_pulse = self._animation_frame % 10 < 5  # On for 5 frames, off for 5
+            if cancel_pulse:
+                animation_text.append("[", style="bold white")
+                animation_text.append("Ctrl+C", style="bold red")
+                animation_text.append(" to cancel]", style="bold white")
+            else:
+                animation_text.append("[", style="dim white")
+                animation_text.append("Ctrl+C", style="dim red")
+                animation_text.append(" to cancel]", style="dim white")
 
             processing_widget.update(animation_text)
             processing_widget.refresh()
@@ -1111,6 +1155,19 @@ class SessionPane(Vertical):
         if session:
             await session.pty_handler.cancel_current_command()
 
+        # Calculate elapsed time
+        import time
+        elapsed = time.time() - self._processing_start_time if hasattr(self, '_processing_start_time') else 0
+        if elapsed < 60:
+            time_str = f"{int(elapsed)}s"
+        else:
+            mins = int(elapsed / 60)
+            secs = int(elapsed % 60)
+            time_str = f"{mins}m {secs}s"
+
+        # Get last known status
+        last_status = self._current_status if hasattr(self, '_current_status') else "Processing"
+
         # Hide processing indicator
         if hasattr(self, '_has_processing_indicator') and self._has_processing_indicator:
             processing_widget = self.query_one(f"#processing-inline-{self.session_id}", Static)
@@ -1121,8 +1178,21 @@ class SessionPane(Vertical):
         # Add cancellation message to output
         output_widget = self.query_one(f"#output-{self.session_id}", SelectableRichLog)
         cancel_msg = Text()
-        cancel_msg.append("\n⚠️  ", style="bold yellow")
-        cancel_msg.append("Command cancelled by user (Ctrl+C)", style="dim yellow")
+        cancel_msg.append("\n", style="")
+        cancel_msg.append("⚠️  ", style="bold yellow")
+        cancel_msg.append("Task cancelled by user", style="bold yellow")
+        cancel_msg.append("\n", style="")
+        cancel_msg.append("   Last status: ", style="dim white")
+        cancel_msg.append(last_status, style="dim cyan")
+        cancel_msg.append("\n", style="")
+        cancel_msg.append("   Runtime: ", style="dim white")
+        cancel_msg.append(time_str, style="dim cyan")
+
+        # Show step count if available
+        if hasattr(self, '_status_history') and len(self._status_history) > 0:
+            cancel_msg.append(" • ", style="dim white")
+            cancel_msg.append(f"{len(self._status_history)} steps completed", style="dim cyan")
+
         cancel_msg.append("\n\n", style="")
         output_widget.write(cancel_msg)
         # Scroll handled by write() override
@@ -1278,9 +1348,11 @@ class SessionPane(Vertical):
         # Initialize animation state and reset metrics
         self._processing_start_time = __import__('time').time()
         self._token_count = 0  # Reset token count for new command
+        self._token_remainder = 0.0  # Reset token counting remainder
         self._thinking_time = 0  # Reset thinking time
         self._has_processing_indicator = True
         self._animation_frame = 0
+        self._first_output_received = False  # Reset first output flag
 
         # Generate braille animation frames
         self._animations = {

@@ -40,7 +40,8 @@ class ClaudeMultiTerminalApp(App):
         Binding("ctrl+shift+t", "reopen_last_session", "Reopen Last"),
         Binding("ctrl+r", "rename_session", "Rename"),
         Binding("ctrl+b", "toggle_broadcast", "Toggle Broadcast"),
-        Binding("ctrl+f", "toggle_search", "Search", priority=True),
+        Binding("ctrl+f", "toggle_focus", "Focus Mode", priority=True),
+        Binding("ctrl+shift+f", "toggle_search", "Search", priority=True),
         Binding("f11", "toggle_focus", "Focus Mode", priority=True),
         Binding("tab", "next_pane", "Next Pane", priority=True),
         Binding("shift+tab", "prev_pane", "Prev Pane", priority=True),
@@ -752,6 +753,39 @@ class ClaudeMultiTerminalApp(App):
         # Mount the context menu
         await self.mount(context_menu)
 
+    async def on_session_pane_context_menu_requested(self, message) -> None:
+        """
+        Handle session pane right-click - show context menu.
+
+        Args:
+            message: SessionPane.ContextMenuRequested message from SessionPane widget
+        """
+        from .widgets.session_pane import SessionPane
+
+        if not isinstance(message, SessionPane.ContextMenuRequested):
+            return
+
+        # Remove any existing context menu
+        for widget in self.query("ContextMenu"):
+            await widget.remove()
+
+        # Create context menu with Focus option
+        menu_items = [
+            ("🔍 Focus", "focus"),
+            ("✏ Rename", "rename"),
+            ("✗ Close", "close"),
+        ]
+
+        context_menu = ContextMenu(
+            items=menu_items,
+            session_id=message.session_id,
+            x=message.screen_x,
+            y=message.screen_y
+        )
+
+        # Mount the context menu
+        await self.mount(context_menu)
+
     async def on_context_menu_item_selected(self, message) -> None:
         """
         Handle context menu item selection.
@@ -765,7 +799,11 @@ class ClaudeMultiTerminalApp(App):
         action = message.action
         session_id = message.session_id
 
-        if action == "rename":
+        if action == "focus":
+            # Focus/maximize the session
+            await self._focus_session_by_id(session_id)
+
+        elif action == "rename":
             # Run in worker context to allow push_screen_wait
             self.run_worker(self._rename_session_by_id(session_id))
 
@@ -776,6 +814,39 @@ class ClaudeMultiTerminalApp(App):
         elif action == "close":
             # Close can run directly (no modal dialogs)
             await self._close_session_by_id(session_id)
+
+    async def _focus_session_by_id(self, session_id: str) -> None:
+        """
+        Focus/maximize a specific session.
+
+        Args:
+            session_id: Session ID to focus
+        """
+        # Find the session pane
+        session_panes = self.query(SessionPane)
+        target_pane = None
+
+        for pane in session_panes:
+            if pane.session_id == session_id:
+                target_pane = pane
+                break
+
+        if not target_pane:
+            self.notify("Session not found", severity="warning")
+            return
+
+        grid = self.query_one("#session-grid", ResizableSessionGrid)
+
+        # Enter focus mode for this specific session
+        self.focus_mode = True
+        self.focused_session_id = session_id
+        await grid.set_focus_mode(session_id, True)
+
+        self.notify(
+            f"🎯 Focus mode: {target_pane.session_name} (Press Ctrl+F or F11 to exit)",
+            severity="information",
+            timeout=3
+        )
 
     async def _change_tab_color(self, session_id: str) -> None:
         """
