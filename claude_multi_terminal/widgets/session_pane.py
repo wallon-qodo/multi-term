@@ -10,6 +10,7 @@ from textual.geometry import Offset
 from textual.message import Message
 from rich.text import Text
 import re
+import math
 from typing import TYPE_CHECKING, List, Deque
 from collections import deque
 
@@ -18,6 +19,130 @@ from ..core.export import TranscriptExporter, sanitize_filename
 
 if TYPE_CHECKING:
     from ..core.session_manager import SessionManager
+
+
+# Braille Animation Generators (from CodePen)
+DOT_BITS = [[0x01, 0x08], [0x02, 0x10], [0x04, 0x20], [0x40, 0x80]]
+
+
+def seeded_random(seed: int):
+    """Seeded random number generator for consistent animations."""
+    s = seed
+    def _rand():
+        nonlocal s
+        s = (s * 1664525 + 1013904223) & 0xffffffff
+        return s / 0xffffffff
+    return _rand
+
+
+def gen_pendulum(width: int = 10, max_spread: float = 1.0) -> List[str]:
+    """Generate pendulum wave animation frames using braille characters."""
+    total_frames = 120
+    pixel_cols = width * 2
+    frames = []
+
+    for t in range(total_frames):
+        codes = [0x2800] * width
+        progress = t / total_frames
+        spread = math.sin(math.pi * progress) * max_spread
+        base_phase = progress * math.pi * 8
+
+        for pc in range(pixel_cols):
+            swing = math.sin(base_phase + pc * spread)
+            center = (1 - swing) * 1.5
+
+            for row in range(4):
+                if abs(row - center) < 0.7:
+                    codes[pc // 2] |= DOT_BITS[row][pc % 2]
+
+        frames.append(''.join(chr(c) for c in codes))
+
+    return frames
+
+
+def gen_compress(width: int = 10) -> List[str]:
+    """Generate compress/squeeze animation frames using braille characters."""
+    total_frames = 100
+    pixel_cols = width * 2
+    total_dots = pixel_cols * 4
+    frames = []
+
+    rand = seeded_random(42)
+    importance = [rand() for _ in range(total_dots)]
+
+    for t in range(total_frames):
+        codes = [0x2800] * width
+        progress = t / total_frames
+        sieve_threshold = max(0.1, 1 - progress * 1.2)
+        squeeze = min(1, progress / 0.85)
+        active_width = max(1, pixel_cols * (1 - squeeze * 0.95))
+
+        for pc in range(pixel_cols):
+            mapped_pc = (pc / pixel_cols) * active_width
+            if mapped_pc >= active_width:
+                continue
+
+            target_pc = round(mapped_pc)
+            if target_pc >= pixel_cols:
+                continue
+
+            char_idx = target_pc // 2
+            dc = target_pc % 2
+
+            for row in range(4):
+                if importance[pc * 4 + row] < sieve_threshold:
+                    codes[char_idx] |= DOT_BITS[row][dc]
+
+        frames.append(''.join(chr(c) for c in codes))
+
+    return frames
+
+
+def gen_sort(width: int = 10) -> List[str]:
+    """Generate sorting visualization animation frames using braille characters."""
+    pixel_cols = width * 2
+    total_frames = 100
+    frames = []
+
+    rand = seeded_random(19)
+    shuffled = [rand() * 3 for _ in range(pixel_cols)]
+    target = [(i / (pixel_cols - 1)) * 3 for i in range(pixel_cols)]
+
+    for t in range(total_frames):
+        codes = [0x2800] * width
+        progress = t / total_frames
+        cursor = progress * pixel_cols * 1.2
+
+        for pc in range(pixel_cols):
+            char_idx = pc // 2
+            dc = pc % 2
+            d = pc - cursor
+
+            if d < -3:
+                center = target[pc]
+            elif d < 2:
+                blend = 1 - (d + 3) / 5
+                ease = blend * blend * (3 - 2 * blend)
+                center = shuffled[pc] + (target[pc] - shuffled[pc]) * ease
+
+                if abs(d) < 0.8:
+                    for r in range(4):
+                        codes[char_idx] |= DOT_BITS[r][dc]
+                    continue
+            else:
+                center = (shuffled[pc] +
+                         math.sin(progress * math.pi * 16 + pc * 2.7) * 0.6 +
+                         math.sin(progress * math.pi * 9 + pc * 1.3) * 0.4)
+
+            center = max(0, min(3, center))
+
+            for r in range(4):
+                if abs(r - center) < 0.7:
+                    codes[char_idx] |= DOT_BITS[r][dc]
+
+        frames.append(''.join(chr(c) for c in codes))
+
+    return frames
 
 
 class CommandTextArea(TextArea):
@@ -313,11 +438,85 @@ class SessionPane(Vertical):
         self._history_index = -1  # Current position in history (-1 = no history navigation)
         self._current_draft = ""  # Store current input when navigating history
 
+        # Real-time status tracking for user feedback
+        self._current_status = "Initializing"
+        self._status_history: Deque[str] = deque(maxlen=10)  # Keep last 10 status updates
+
     def _log(self, msg: str):
         """Write to debug log."""
         import time
         self._debug_log.write(f"[{time.time():.2f}] {msg}\n")
         self._debug_log.flush()
+
+    def _extract_status_from_output(self, output: str) -> str:
+        """
+        Extract meaningful status information from Claude's output.
+
+        Looks for action phrases and file references to show what Claude is doing.
+
+        Args:
+            output: Raw output from Claude
+
+        Returns:
+            Status string or empty string if nothing meaningful found
+        """
+        # Common patterns that indicate what Claude is doing
+        patterns = [
+            # Tool usage patterns (most specific first)
+            (r"<invoke name=\"(\w+)\"", lambda m: f"Using {m.group(1)}"),
+            (r"<invoke name=\"(\w+)\"", lambda m: f"Using {m.group(1)}"),
+
+            # File operations with paths
+            (r"Reading [`'\"]?([^`'\":\n]+\.[\w]+)", lambda m: f"Reading {m.group(1).split('/')[-1]}"),
+            (r"Writing [`'\"]?([^`'\":\n]+\.[\w]+)", lambda m: f"Writing {m.group(1).split('/')[-1]}"),
+            (r"Editing [`'\"]?([^`'\":\n]+\.[\w]+)", lambda m: f"Editing {m.group(1).split('/')[-1]}"),
+            (r"Modifying [`'\"]?([^`'\":\n]+\.[\w]+)", lambda m: f"Modifying {m.group(1).split('/')[-1]}"),
+
+            # Search and find operations
+            (r"Searching for [`'\"]?([^`'\":\n]{3,30})[`'\"]?", lambda m: f"Searching: {m.group(1)}"),
+            (r"Looking for [`'\"]?([^`'\":\n]{3,30})[`'\"]?", lambda m: f"Finding: {m.group(1)}"),
+            (r"Finding [`'\"]?([^`'\":\n]{3,30})[`'\"]?", lambda m: f"Finding: {m.group(1)}"),
+
+            # Execution operations
+            (r"Running command [`'\"]?([^`'\":\n]+)[`'\"]?", lambda m: f"Running: {m.group(1)}"),
+            (r"Executing [`'\"]?([^`'\":\n]+)[`'\"]?", lambda m: f"Running: {m.group(1)}"),
+            (r"Testing [`'\"]?([^`'\":\n]+)[`'\"]?", lambda m: f"Testing: {m.group(1)}"),
+
+            # Analysis operations
+            (r"Analyzing ([^`'\":\n]{3,30})", lambda m: f"Analyzing: {m.group(1)}"),
+            (r"Checking ([^`'\":\n]{3,30})", lambda m: f"Checking: {m.group(1)}"),
+            (r"Verifying ([^`'\":\n]{3,30})", lambda m: f"Verifying: {m.group(1)}"),
+
+            # Build/Install operations
+            (r"Installing ([^`'\":\n]+)", lambda m: f"Installing: {m.group(1)}"),
+            (r"Building ([^`'\":\n]+)", lambda m: f"Building: {m.group(1)}"),
+            (r"Compiling ([^`'\":\n]+)", lambda m: f"Compiling: {m.group(1)}"),
+
+            # Action phrases (Claude's typical responses)
+            (r"Let me (\w+(?:\s+\w+){0,4})", lambda m: m.group(1).capitalize()),
+            (r"I'll (\w+(?:\s+\w+){0,4})", lambda m: m.group(1).capitalize()),
+            (r"I'm going to (\w+(?:\s+\w+){0,4})", lambda m: m.group(1).capitalize()),
+            (r"First,? I(?:'ll| will) (\w+(?:\s+\w+){0,4})", lambda m: f"→ {m.group(1)}"),
+            (r"Now (?:let me |I'll |I will )?(\w+(?:\s+\w+){0,4})", lambda m: m.group(1).capitalize()),
+
+            # Generic -ing patterns
+            (r"(?:^|\n)(?:##?\s+)?(\w+ing)(?:\s+[a-z])", lambda m: m.group(1)),
+        ]
+
+        for pattern, formatter in patterns:
+            match = re.search(pattern, output, re.IGNORECASE)
+            if match:
+                try:
+                    status = formatter(match)
+                    # Clean up the status
+                    status = status.strip()
+                    if len(status) > 40:
+                        status = status[:37] + "..."
+                    return status
+                except:
+                    continue
+
+        return ""
 
     def compose(self) -> ComposeResult:
         """Build the pane UI components."""
@@ -561,6 +760,13 @@ class SessionPane(Vertical):
             # Update token count (rough estimate: 4 chars per token)
             self._token_count += len(filtered_output) // 4
 
+            # Extract status information from output for real-time feedback
+            status = self._extract_status_from_output(filtered_output)
+            if status and status != self._current_status:
+                self._current_status = status
+                self._status_history.append(status)
+                self._log(f"Status update: {status}")
+
             # Clear processing indicator on first real output
             if hasattr(self, '_has_processing_indicator') and self._has_processing_indicator:
                 # Hide the inline processing indicator
@@ -578,8 +784,8 @@ class SessionPane(Vertical):
             rich_text = Text.from_ansi(filtered_output)
             self._log(f"Converted to Rich Text: {len(rich_text.plain)} plain chars")
 
-            # Check if this contains Claude's completion text (✻ Baked/Sautéed/etc)
-            completion_patterns = ["✻ Baked", "✻ Sautéed", "✻ Churned", "✻ Crunched", "✻ Grilled", "✻ Roasted"]
+            # Check if this contains Claude's completion text (✻ Completed/Finished/etc)
+            completion_patterns = ["✻ Completed", "✻ Finished", "✻ Done", "✻ Processed"]
             has_completion = any(pattern in filtered_output for pattern in completion_patterns)
 
             # Write the Rich Text to SelectableRichLog
@@ -609,7 +815,7 @@ class SessionPane(Vertical):
             pass
 
     def _animate_processing(self) -> None:
-        """Animate the processing indicator with shimmer and cycling icon, plus real-time metrics."""
+        """Animate the processing indicator with braille animations, plus real-time metrics."""
         try:
             # Stop if processing is done
             if not hasattr(self, '_has_processing_indicator') or not self._has_processing_indicator:
@@ -620,23 +826,19 @@ class SessionPane(Vertical):
             # Increment frame
             self._animation_frame += 1
 
-            # Cycle through emojis every 2 frames (faster for more responsive feel)
-            emoji_idx = (self._animation_frame // 2) % len(self._cooking_emojis)
-            emoji = self._cooking_emojis[emoji_idx]
+            # Switch animation type every 60 frames (12 seconds at 0.2s per frame)
+            if self._animation_frame % 60 == 0:
+                self._current_animation_idx = (self._current_animation_idx + 1) % len(self._animation_types)
 
-            # Cycle through verbs every 4 frames
-            verb_idx = (self._animation_frame // 4) % len(self._cooking_verbs)
-            verb = self._cooking_verbs[verb_idx]
+            # Get current animation
+            current_anim_type = self._animation_types[self._current_animation_idx]
+            current_anim_name = self._animation_names[self._current_animation_idx]
+            current_anim_color = self._animation_colors[self._current_animation_idx]
+            animation_frames = self._animations[current_anim_type]
 
-            # Shimmer effect: cycle through brightness (faster animation)
-            shimmer_styles = [
-                "bold yellow",
-                "bold bright_yellow",
-                "bold yellow",
-                "dim yellow"
-            ]
-            shimmer_idx = self._animation_frame % len(shimmer_styles)
-            shimmer_style = shimmer_styles[shimmer_idx]
+            # Get current frame from the animation
+            frame_idx = self._animation_frame % len(animation_frames)
+            braille_frame = animation_frames[frame_idx]
 
             # Calculate real-time metrics
             import time
@@ -668,10 +870,14 @@ class SessionPane(Vertical):
             cursor_frames = ["▌", "▐", "▌", " "]
             cursor = cursor_frames[self._animation_frame % len(cursor_frames)]
 
+            # Get current status or fall back to animation name
+            display_status = self._current_status if hasattr(self, '_current_status') else current_anim_name
+
             # Update the processing widget with animation + metrics
             animation_text = Text()
-            animation_text.append(f"{emoji} ", style="")
-            animation_text.append(verb, style=shimmer_style)  # Animated word
+            animation_text.append(braille_frame, style=current_anim_color)  # Braille animation
+            animation_text.append(" ", style="")
+            animation_text.append(display_status, style="bold yellow")  # Real-time status
             animation_text.append(f" {cursor}", style="bold bright_cyan")  # Streaming cursor
 
             # Add metrics (not animated, just updated)
@@ -926,7 +1132,7 @@ class SessionPane(Vertical):
         self.is_active = False
 
     def _add_completion_message(self) -> None:
-        """Add cooking-themed completion message after response is complete."""
+        """Add completion message after response is complete."""
         import time
         import random
 
@@ -943,7 +1149,7 @@ class SessionPane(Vertical):
 
             # Check if Claude already provided a completion message
             recent_text = "\n".join([str(line) for line in output_widget.lines[-5:]])
-            has_claude_completion = "✻" in recent_text or "Baked" in recent_text or "Sautéed" in recent_text or "Churned" in recent_text or "Crunched" in recent_text
+            has_claude_completion = "✻" in recent_text or "Completed" in recent_text or "Finished" in recent_text or "Done" in recent_text or "Processed" in recent_text
 
             if not has_claude_completion:
                 # Calculate elapsed time
@@ -957,14 +1163,20 @@ class SessionPane(Vertical):
                     secs = int(elapsed % 60)
                     time_str = f"{mins}m {secs}s"
 
-                # Choose a random cooking verb
-                cooking_verbs = ["Baked", "Sautéed", "Churned", "Crunched", "Grilled", "Roasted", "Simmered"]
-                verb = random.choice(cooking_verbs)
+                # Choose a random completion verb
+                completion_verbs = ["Completed", "Finished", "Done", "Processed"]
+                verb = random.choice(completion_verbs)
 
                 end_marker = Text()
                 end_marker.append("\n", style="")
                 end_marker.append("✻ ", style="bold bright_cyan")
-                end_marker.append(f"{verb} for {time_str}", style="dim white")
+                end_marker.append(f"{verb} in {time_str}", style="dim white")
+
+                # Add status summary if we tracked any steps
+                if hasattr(self, '_status_history') and len(self._status_history) > 1:
+                    end_marker.append(" • ", style="dim white")
+                    end_marker.append(f"{len(self._status_history)} steps", style="dim cyan")
+
                 end_marker.append("\n\n", style="")
                 output_widget.write(end_marker)
                 # Scroll handled by write() override
@@ -1069,13 +1281,28 @@ class SessionPane(Vertical):
         self._thinking_time = 0  # Reset thinking time
         self._has_processing_indicator = True
         self._animation_frame = 0
-        self._cooking_emojis = ["🥘", "🍳", "🍲", "🥄", "🔥"]
-        self._cooking_verbs = ["Brewing", "Thinking", "Processing", "Cooking", "Working"]
+
+        # Generate braille animation frames
+        self._animations = {
+            'pendulum': gen_pendulum(10, 1.0),
+            'compress': gen_compress(10),
+            'sort': gen_sort(10)
+        }
+        self._animation_names = ['Pendulum', 'Compress', 'Sort']
+        self._animation_types = ['pendulum', 'compress', 'sort']
+        self._animation_colors = ['rgb(250,204,21)', 'rgb(248,113,113)', 'rgb(96,165,250)']  # Yellow, Red, Blue
+        self._current_animation_idx = 0
+
+        # Initialize status for this command
+        self._current_status = "Sending to Claude..."
+        self._status_history.clear()
+        self._status_history.append(self._current_status)
 
         # Start with initial frame with metrics
         initial_text = Text()
-        initial_text.append("🥘 ", style="")
-        initial_text.append("Brewing", style="bold yellow")
+        initial_text.append(self._animations['pendulum'][0], style=self._animation_colors[0])
+        initial_text.append(" ", style="")
+        initial_text.append(self._current_status, style="bold yellow")
         initial_text.append(" ▌", style="bold bright_cyan")  # Streaming cursor
         initial_text.append(" (0s · ↓ 0 @ 0/s)", style="dim white")
         processing_widget.update(initial_text)
