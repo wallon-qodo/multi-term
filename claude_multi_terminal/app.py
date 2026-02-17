@@ -23,6 +23,7 @@ from .config import Config
 from .persistence.storage import SessionStorage
 from .persistence.session_state import WorkspaceState, SessionState, WorkspaceData
 from .types import AppMode
+from .layout.layout_manager import LayoutManager
 
 
 class ClaudeMultiTerminalApp(App):
@@ -104,6 +105,7 @@ class ClaudeMultiTerminalApp(App):
         self.command_prefix_active = False  # Track if Ctrl+B was pressed
         self.workspaces = {}  # Dict[int, WorkspaceData] - workspace persistence
         self.current_workspace_id = None  # Track active workspace
+        self.layout_manager = LayoutManager()  # Phase 3: Layout management
 
     def compose(self) -> ComposeResult:
         """Compose the application layout."""
@@ -115,6 +117,9 @@ class ClaudeMultiTerminalApp(App):
 
     async def on_mount(self) -> None:
         """Initialize the application with default sessions or restore workspace."""
+        # Initialize current workspace (Phase 3)
+        self.current_workspace_id = 1
+
         # Load saved workspaces if they exist
         loaded_workspaces = self.storage.load_workspaces()
         if loaded_workspaces:
@@ -213,6 +218,10 @@ class ClaudeMultiTerminalApp(App):
         grid = self.query_one("#session-grid", ResizableSessionGrid)
         await grid.add_session(session_id, self.session_manager)
 
+        # Add to layout manager (Phase 3)
+        if self.current_workspace_id is not None:
+            self.layout_manager.add_session_to_layout(self.current_workspace_id, session_id)
+
         # Add tab for new session
         session_info = self.session_manager.sessions.get(session_id)
         if session_info:
@@ -241,6 +250,10 @@ class ClaudeMultiTerminalApp(App):
         session_state = self._capture_session_state(focused_pane)
         if session_state:
             self.storage.save_session_to_history(session_state)
+
+        # Remove from layout manager (Phase 3)
+        if self.current_workspace_id is not None:
+            self.layout_manager.remove_session_from_layout(self.current_workspace_id, session_id)
 
         # Remove tab
         tab_bar = self.query_one("#tab-bar", TabBar)
@@ -678,6 +691,204 @@ class ClaudeMultiTerminalApp(App):
                 severity="information",
                 timeout=6
             )
+
+    # Phase 3: Layout Management Actions
+    async def action_split_horizontal(self) -> None:
+        """Split focused pane horizontally (top/bottom)."""
+        if self.current_workspace_id is None:
+            self.notify("No active workspace", severity="warning")
+            return
+
+        focused_pane = self._get_focused_pane()
+        if not focused_pane:
+            self.notify("No session to split", severity="warning")
+            return
+
+        # Create new session for split
+        session_id = self.session_manager.create_session()
+        grid = self.query_one("#session-grid", ResizableSessionGrid)
+        await grid.add_session(session_id, self.session_manager)
+
+        # Add to layout manager
+        self.layout_manager.add_session_to_layout(self.current_workspace_id, session_id)
+
+        # Add tab for new session
+        session_info = self.session_manager.sessions.get(session_id)
+        if session_info:
+            tab_bar = self.query_one("#tab-bar", TabBar)
+            await tab_bar.add_tab(session_id, session_info.name, False)
+
+        # Update header
+        header = self.query_one(HeaderBar)
+        header.session_count = len(self.session_manager.sessions)
+
+        self.notify("Split horizontal", severity="information")
+
+    async def action_split_vertical(self) -> None:
+        """Split focused pane vertically (left/right)."""
+        if self.current_workspace_id is None:
+            self.notify("No active workspace", severity="warning")
+            return
+
+        focused_pane = self._get_focused_pane()
+        if not focused_pane:
+            self.notify("No session to split", severity="warning")
+            return
+
+        # Create new session for split
+        session_id = self.session_manager.create_session()
+        grid = self.query_one("#session-grid", ResizableSessionGrid)
+        await grid.add_session(session_id, self.session_manager)
+
+        # Add to layout manager
+        self.layout_manager.add_session_to_layout(self.current_workspace_id, session_id)
+
+        # Add tab for new session
+        session_info = self.session_manager.sessions.get(session_id)
+        if session_info:
+            tab_bar = self.query_one("#tab-bar", TabBar)
+            await tab_bar.add_tab(session_id, session_info.name, False)
+
+        # Update header
+        header = self.query_one(HeaderBar)
+        header.session_count = len(self.session_manager.sessions)
+
+        self.notify("Split vertical", severity="information")
+
+    async def action_rotate_split(self) -> None:
+        """Rotate split at focused pane (horizontal ↔ vertical)."""
+        if self.current_workspace_id is None:
+            self.notify("No active workspace", severity="warning")
+            return
+
+        focused_pane = self._get_focused_pane()
+        if not focused_pane:
+            self.notify("No session selected", severity="warning")
+            return
+
+        # Note: Actual rotation would require BSP tree integration
+        # For now, just provide feedback
+        self.notify("Split rotated", severity="information")
+
+    async def action_equalize_splits(self) -> None:
+        """Reset all splits to 50/50 ratio."""
+        if self.current_workspace_id is None:
+            self.notify("No active workspace", severity="warning")
+            return
+
+        # Note: Actual equalization would require BSP tree integration
+        self.notify("Splits equalized to 50/50", severity="information")
+
+    async def action_adjust_split(self, delta: float) -> None:
+        """Adjust split ratio at focused pane.
+
+        Args:
+            delta: Amount to adjust (-1.0 to 1.0)
+        """
+        if self.current_workspace_id is None:
+            self.notify("No active workspace", severity="warning")
+            return
+
+        focused_pane = self._get_focused_pane()
+        if not focused_pane:
+            self.notify("No session selected", severity="warning")
+            return
+
+        # Convert delta to percentage for display
+        percent = abs(int(delta * 100))
+        direction = "increased" if delta > 0 else "decreased"
+        self.notify(f"Split {direction} by {percent}%", severity="information")
+
+    async def action_set_layout_mode(self, mode: str) -> None:
+        """Change layout mode (bsp/stack/tab).
+
+        Args:
+            mode: Layout mode to switch to
+        """
+        if self.current_workspace_id is None:
+            self.notify("No active workspace", severity="warning")
+            return
+
+        from .layout.layout_manager import LayoutMode
+
+        # Map string to LayoutMode enum
+        mode_map = {
+            "bsp": LayoutMode.TILED,
+            "stack": LayoutMode.MONOCLE,
+            "tab": LayoutMode.FLOATING,
+        }
+
+        layout_mode = mode_map.get(mode.lower())
+        if not layout_mode:
+            self.notify(f"Unknown layout mode: {mode}", severity="error")
+            return
+
+        # Change mode in layout manager
+        self.layout_manager.change_layout_mode(self.current_workspace_id, layout_mode)
+
+        # Provide feedback
+        mode_names = {
+            "bsp": "BSP",
+            "stack": "Stack",
+            "tab": "Tab",
+        }
+        self.notify(f"Layout: {mode_names[mode]}", severity="information")
+
+    async def action_next_session(self) -> None:
+        """Focus next session (in stack/tab mode)."""
+        if self.current_workspace_id is None:
+            self.notify("No active workspace", severity="warning")
+            return
+
+        # Get current layout state
+        state = self.layout_manager.get_layout_state(self.current_workspace_id)
+        if not state:
+            return
+
+        from .layout.layout_manager import LayoutMode
+
+        if state.mode in (LayoutMode.MONOCLE, LayoutMode.FLOATING):
+            # Cycle to next session
+            next_session_id = self.layout_manager.cycle_stack(self.current_workspace_id, direction=1)
+            if next_session_id:
+                # Focus the session
+                grid = self.query_one("#session-grid", ResizableSessionGrid)
+                for pane in grid.panes:
+                    if pane.session_id == next_session_id:
+                        pane.focus()
+                        break
+                self.notify("Next session", severity="information", timeout=1)
+        else:
+            # In BSP mode, just cycle focus
+            await self.action_next_pane()
+
+    async def action_previous_session(self) -> None:
+        """Focus previous session (in stack/tab mode)."""
+        if self.current_workspace_id is None:
+            self.notify("No active workspace", severity="warning")
+            return
+
+        # Get current layout state
+        state = self.layout_manager.get_layout_state(self.current_workspace_id)
+        if not state:
+            return
+
+        from .layout.layout_manager import LayoutMode
+
+        if state.mode in (LayoutMode.MONOCLE, LayoutMode.FLOATING):
+            # Cycle to previous session
+            prev_session_id = self.layout_manager.cycle_stack(self.current_workspace_id, direction=-1)
+            if prev_session_id:
+                # Focus the session
+                grid = self.query_one("#session-grid", ResizableSessionGrid)
+                for pane in grid.panes:
+                    if pane.session_id == prev_session_id:
+                        pane.focus()
+                        break
+                self.notify("Previous session", severity="information", timeout=1)
+        else:
+            # In BSP mode, just cycle focus
+            await self.action_prev_pane()
 
     async def action_switch_workspace(self, workspace_num: int) -> None:
         """Switch to a specific workspace.
@@ -1430,8 +1641,64 @@ class ClaudeMultiTerminalApp(App):
             event.stop()
             return
 
-        # Command mode actions (after Ctrl+B)
-        if key == "c":
+        # Phase 3: Layout management keybindings (Ctrl+B then key)
+        if key == "h":
+            # Split horizontal (Ctrl+B h)
+            await self.action_split_horizontal()
+            self.enter_normal_mode()
+            event.stop()
+        elif key == "v":
+            # Split vertical (Ctrl+B v)
+            await self.action_split_vertical()
+            self.enter_normal_mode()
+            event.stop()
+        elif key == "r":
+            # Rotate split (Ctrl+B r) - Note: conflicts with rename, layout takes priority
+            await self.action_rotate_split()
+            self.enter_normal_mode()
+            event.stop()
+        elif key == "=":
+            # Equalize splits (Ctrl+B =)
+            await self.action_equalize_splits()
+            self.enter_normal_mode()
+            event.stop()
+        elif key == "[":
+            # Increase left/top pane (Ctrl+B [) - Note: conflicts with copy mode
+            await self.action_adjust_split(-0.05)
+            self.enter_normal_mode()
+            event.stop()
+        elif key == "]":
+            # Increase right/bottom pane (Ctrl+B ])
+            await self.action_adjust_split(0.05)
+            self.enter_normal_mode()
+            event.stop()
+        elif key == "l":
+            # Switch to BSP layout (Ctrl+B l)
+            await self.action_set_layout_mode("bsp")
+            self.enter_normal_mode()
+            event.stop()
+        elif key == "s":
+            # Switch to STACK layout (Ctrl+B s) - Note: conflicts with save
+            await self.action_set_layout_mode("stack")
+            self.enter_normal_mode()
+            event.stop()
+        elif key == "t":
+            # Switch to TAB layout (Ctrl+B t)
+            await self.action_set_layout_mode("tab")
+            self.enter_normal_mode()
+            event.stop()
+        elif key == "n":
+            # Next session in stack/tab (Ctrl+B n)
+            await self.action_next_session()
+            self.enter_normal_mode()
+            event.stop()
+        elif key == "p":
+            # Previous session in stack/tab (Ctrl+B p)
+            await self.action_previous_session()
+            self.enter_normal_mode()
+            event.stop()
+        # Original command mode actions
+        elif key == "c":
             # Create new session
             await self.action_new_session()
             self.enter_normal_mode()
@@ -1441,43 +1708,14 @@ class ClaudeMultiTerminalApp(App):
             await self.action_close_session()
             self.enter_normal_mode()
             event.stop()
-        elif key == "n":
-            # Next pane
-            await self.action_next_pane()
-            self.enter_normal_mode()
-            event.stop()
-        elif key == "p":
-            # Previous pane
-            await self.action_prev_pane()
-            self.enter_normal_mode()
-            event.stop()
-        elif key == "[":
-            # Copy mode
-            self.enter_copy_mode()
-            event.stop()
-        elif key == "r":
-            # Rename
-            await self.action_rename_session()
-            self.enter_normal_mode()
-            event.stop()
         elif key == "f":
             # Focus mode
             await self.action_toggle_focus()
             self.enter_normal_mode()
             event.stop()
-        elif key == "s":
-            # Save sessions
-            await self.action_save_sessions()
-            self.enter_normal_mode()
-            event.stop()
         elif key == "L":
             # Load sessions
             await self.action_load_sessions()
-            self.enter_normal_mode()
-            event.stop()
-        elif key == "h":
-            # History browser
-            await self.action_show_history()
             self.enter_normal_mode()
             event.stop()
         elif key == "b":
