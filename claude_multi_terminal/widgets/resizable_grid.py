@@ -365,35 +365,27 @@ class ResizableSessionGrid(Container):
         self.focused_session_id = session_id
 
         if enabled and session_id:
-            # Store original panes list
-            self.original_panes = self.panes.copy()
-
-            # Find the focused pane
-            focused_pane = None
-            for pane in self.panes:
+            # Hide all containers except the focused one
+            # This preserves widget state instead of destroying/recreating
+            for container in self.containers:
+                pane = container.query_one(SessionPane)
                 if pane.session_id == session_id:
-                    focused_pane = pane
-                    break
-
-            if focused_pane:
-                # Temporarily show only the focused pane
-                self.panes = [focused_pane]
-                self.pane_count = 1
-                await self._rebuild_layout()
-
-                # Add visual indicator to focused pane
-                focused_pane.add_class("focused-mode")
+                    # Show the focused pane full-screen
+                    container.display = True
+                    container.styles.width = "100%"
+                    container.styles.height = "100%"
+                    container.add_class("focused-mode")
+                else:
+                    # Hide other panes (but keep them alive in the DOM)
+                    container.display = False
         else:
-            # Restore all panes
-            if self.original_panes:
-                self.panes = self.original_panes
-                self.original_panes = []
-                self.pane_count = len(self.panes)
-                await self._rebuild_layout()
+            # Restore all panes to visible
+            for container in self.containers:
+                container.display = True
+                container.remove_class("focused-mode")
 
-                # Remove focus mode class from all panes
-                for pane in self.panes:
-                    pane.remove_class("focused-mode")
+            # Trigger a layout recalculation without destroying widgets
+            self.refresh(layout=True)
 
     async def _rebuild_layout(self) -> None:
         """
