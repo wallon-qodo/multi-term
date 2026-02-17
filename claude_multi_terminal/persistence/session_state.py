@@ -9,8 +9,99 @@ Classes:
 """
 
 from dataclasses import dataclass, asdict, field
-from typing import List, Optional
+from typing import List, Optional, Dict
 import json
+
+
+@dataclass
+class WorkspaceData:
+    """Represents a saved workspace containing multiple sessions.
+
+    This class captures workspace metadata for saving and loading workspaces.
+    Unlike WorkspaceState (which represents the current workspace), WorkspaceData
+    is used for persisting named workspace snapshots.
+
+    Attributes:
+        workspace_id: Unique identifier for the workspace
+        name: Display name for the workspace
+        sessions: List of session states in this workspace
+        created_at: Unix timestamp of workspace creation
+        modified_at: Unix timestamp of last modification
+        description: Optional description of the workspace
+        tags: Optional tags for categorizing workspaces
+
+    Example:
+        >>> workspace = WorkspaceData(
+        ...     workspace_id="ws_123",
+        ...     name="Development",
+        ...     sessions=[session1, session2],
+        ...     created_at=time.time(),
+        ...     modified_at=time.time()
+        ... )
+    """
+    workspace_id: str
+    name: str
+    sessions: List['SessionState']
+    created_at: float
+    modified_at: float
+    description: Optional[str] = None
+    tags: List[str] = field(default_factory=list)
+
+    def to_dict(self) -> dict:
+        """Convert workspace data to dictionary for JSON serialization.
+
+        Returns:
+            Dictionary representation suitable for JSON storage
+
+        Example:
+            >>> workspace = WorkspaceData(...)
+            >>> data = workspace.to_dict()
+            >>> json.dumps(data)
+        """
+        return {
+            'workspace_id': self.workspace_id,
+            'name': self.name,
+            'sessions': [asdict(s) for s in self.sessions],
+            'created_at': self.created_at,
+            'modified_at': self.modified_at,
+            'description': self.description,
+            'tags': self.tags
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "WorkspaceData":
+        """Reconstruct workspace data from dictionary.
+
+        Args:
+            data: Dictionary representation of workspace data
+
+        Returns:
+            WorkspaceData object
+
+        Raises:
+            KeyError: If required fields are missing
+            TypeError: If field types are incorrect
+
+        Example:
+            >>> data = json.load(f)
+            >>> workspace = WorkspaceData.from_dict(data)
+        """
+        # Convert session dicts to SessionState objects
+        sessions_data = data.get('sessions', [])
+        sessions = [
+            SessionState(**s) if isinstance(s, dict) else s
+            for s in sessions_data
+        ]
+
+        return cls(
+            workspace_id=data['workspace_id'],
+            name=data['name'],
+            sessions=sessions,
+            created_at=data['created_at'],
+            modified_at=data['modified_at'],
+            description=data.get('description'),
+            tags=data.get('tags', [])
+        )
 
 
 @dataclass

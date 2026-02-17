@@ -21,7 +21,7 @@ from .widgets.color_picker import ColorPickerDialog
 from .widgets.workspace_manager import WorkspaceManager
 from .config import Config
 from .persistence.storage import SessionStorage
-from .persistence.session_state import WorkspaceState, SessionState
+from .persistence.session_state import WorkspaceState, SessionState, WorkspaceData
 from .types import AppMode
 
 
@@ -102,6 +102,8 @@ class ClaudeMultiTerminalApp(App):
         self.focused_session_id = None
         self.mode: AppMode = AppMode.NORMAL  # Start in NORMAL mode
         self.command_prefix_active = False  # Track if Ctrl+B was pressed
+        self.workspaces = {}  # Dict[int, WorkspaceData] - workspace persistence
+        self.current_workspace_id = None  # Track active workspace
 
     def compose(self) -> ComposeResult:
         """Compose the application layout."""
@@ -113,6 +115,11 @@ class ClaudeMultiTerminalApp(App):
 
     async def on_mount(self) -> None:
         """Initialize the application with default sessions or restore workspace."""
+        # Load saved workspaces if they exist
+        loaded_workspaces = self.storage.load_workspaces()
+        if loaded_workspaces:
+            self.workspaces = loaded_workspaces
+
         # Try to load saved workspace first
         state = self.storage.load_state()
 
@@ -179,6 +186,9 @@ class ClaudeMultiTerminalApp(App):
         if Config.SAVE_ON_EXIT:
             try:
                 await self.action_save_sessions()
+                # Also save all workspaces
+                if self.workspaces:
+                    self.storage.save_workspaces(self.workspaces)
             except Exception as e:
                 # Log error but don't block exit
                 pass
@@ -292,6 +302,10 @@ class ClaudeMultiTerminalApp(App):
 
     async def action_manage_workspaces(self) -> None:
         """Show workspace manager dialog."""
+        # Auto-save current workspace if enabled
+        if Config.AUTO_SAVE and self.current_workspace_id is not None:
+            await self._save_current_workspace()
+
         # Get current session states for saving
         grid = self.query_one("#session-grid", ResizableSessionGrid)
         current_sessions = []
@@ -331,6 +345,10 @@ class ClaudeMultiTerminalApp(App):
 
     async def _restore_workspace_state(self, state: WorkspaceState) -> None:
         """Restore workspace from state object."""
+        # Save current workspace before switching (if AUTO_SAVE enabled)
+        if Config.AUTO_SAVE and self.current_workspace_id is not None:
+            await self._save_current_workspace()
+
         # Clear existing sessions and tabs
         grid = self.query_one("#session-grid", ResizableSessionGrid)
         tab_bar = self.query_one("#tab-bar", TabBar)
@@ -360,6 +378,62 @@ class ClaudeMultiTerminalApp(App):
             f"✓ Restored {len(state.sessions)} session(s) from workspace",
             severity="information"
         )
+
+    async def _save_current_workspace(self) -> bool:
+        """Save current workspace to the workspaces dictionary.
+
+        Returns:
+            True if workspace was saved successfully, False otherwise
+        """
+        import time
+        import uuid
+
+        try:
+            # Get all session panes and capture their state
+            grid = self.query_one("#session-grid", ResizableSessionGrid)
+            enhanced_sessions = []
+
+            for pane in grid.panes:
+                session_state = self._capture_session_state(pane)
+                if session_state:
+                    enhanced_sessions.append(session_state)
+
+            # Create or update workspace
+            if self.current_workspace_id is None:
+                # Generate new workspace ID
+                self.current_workspace_id = len(self.workspaces) + 1
+                workspace_id_str = str(uuid.uuid4())[:8]
+                workspace_name = f"Workspace {self.current_workspace_id}"
+                created_at = time.time()
+            else:
+                # Update existing workspace
+                existing = self.workspaces.get(self.current_workspace_id)
+                if existing:
+                    workspace_id_str = existing.workspace_id
+                    workspace_name = existing.name
+                    created_at = existing.created_at
+                else:
+                    workspace_id_str = str(uuid.uuid4())[:8]
+                    workspace_name = f"Workspace {self.current_workspace_id}"
+                    created_at = time.time()
+
+            # Create WorkspaceData object
+            workspace_data = WorkspaceData(
+                workspace_id=workspace_id_str,
+                name=workspace_name,
+                sessions=enhanced_sessions,
+                created_at=created_at,
+                modified_at=time.time()
+            )
+
+            # Save to workspaces dictionary
+            self.workspaces[self.current_workspace_id] = workspace_data
+
+            # Persist to disk
+            return self.storage.save_workspaces(self.workspaces)
+
+        except Exception as e:
+            return False
 
     async def action_rename_session(self) -> None:
         """Prompt user to rename the currently focused session."""
@@ -604,6 +678,77 @@ class ClaudeMultiTerminalApp(App):
                 severity="information",
                 timeout=6
             )
+
+    async def action_switch_workspace(self, workspace_num: int) -> None:
+        """Switch to a specific workspace.
+
+        Args:
+            workspace_num: Target workspace number (1-9)
+        """
+        if not 1 <= workspace_num <= 9:
+            self.notify(f"Invalid workspace: {workspace_num}", severity="warning")
+            return
+
+        # Get current workspace before switching
+        current_ws = self.workspace_controller.get_current_workspace()
+
+        if workspace_num == current_ws:
+            self.notify(f"Already on workspace {workspace_num}", severity="information", timeout=1)
+            return
+
+        # Perform workspace switch
+        app_context = self._get_app_context()
+        success = await self.workspace_controller.switch_to_workspace(workspace_num, app_context)
+
+        if success:
+            workspace_name = self.workspace_controller.get_workspace_name(workspace_num)
+            self.notify(
+                f"Switched to Workspace {workspace_num}: {workspace_name}",
+                severity="information",
+                timeout=2
+            )
+        else:
+            self.notify(
+                f"Failed to switch to workspace {workspace_num}",
+                severity="error"
+            )
+
+    async def action_move_session_to_workspace(self, workspace_num: int) -> None:
+        """Move active session to a specific workspace.
+
+        Args:
+            workspace_num: Target workspace number (1-9)
+        """
+        if not 1 <= workspace_num <= 9:
+            self.notify(f"Invalid workspace: {workspace_num}", severity="warning")
+            return
+
+        focused_pane = self._get_focused_pane()
+        if not focused_pane:
+            self.notify("No active session to move", severity="warning")
+            return
+
+        session_id = focused_pane.session_id
+        current_ws = self.workspace_controller.get_current_workspace()
+
+        if workspace_num == current_ws:
+            self.notify(f"Session already in workspace {workspace_num}", severity="information", timeout=1)
+            return
+
+        # Remove from current workspace
+        self.workspace_controller.remove_session_from_workspace(session_id, current_ws)
+
+        # Add to target workspace
+        self.workspace_controller.add_session_to_workspace(session_id, workspace_num)
+
+        # Close session in current view (will be available in target workspace)
+        await self.action_close_session()
+
+        workspace_name = self.workspace_controller.get_workspace_name(workspace_num)
+        self.notify(
+            f"Moved session to Workspace {workspace_num}: {workspace_name}",
+            severity="information"
+        )
 
     async def on_session_pane_focus(self, event) -> None:
         """
@@ -1002,6 +1147,19 @@ class ClaudeMultiTerminalApp(App):
         focused_pane = self._get_focused_pane()
         return focused_pane.session_id if focused_pane else None
 
+    def _get_app_context(self):
+        """
+        Create an app context object for workspace controller.
+
+        Returns:
+            Simple namespace with session_grid and session_manager
+        """
+        from types import SimpleNamespace
+        return SimpleNamespace(
+            session_grid=self.query_one("#session-grid", ResizableSessionGrid),
+            session_manager=self.session_manager
+        )
+
     def _capture_session_state(self, pane: SessionPane) -> Optional[SessionState]:
         """
         Capture complete session state from a SessionPane for persistence.
@@ -1137,6 +1295,20 @@ class ClaudeMultiTerminalApp(App):
             event.stop()
             return
 
+        # Workspace switching (1-9 keys)
+        if key in ["1", "2", "3", "4", "5", "6", "7", "8", "9"]:
+            workspace_num = int(key)
+            await self.action_switch_workspace(workspace_num)
+            event.stop()
+            return
+
+        # Alt+1-9 alternative workspace switching
+        if key.startswith("alt+") and len(key) == 5 and key[-1].isdigit():
+            workspace_num = int(key[-1])
+            await self.action_switch_workspace(workspace_num)
+            event.stop()
+            return
+
         # Window management keys (delegate to existing handlers)
         if key == "n":
             await self.action_new_session()
@@ -1247,6 +1419,16 @@ class ClaudeMultiTerminalApp(App):
     async def _handle_command_mode_key(self, event: Key) -> None:
         """Handle keys in COMMAND mode - prefix key actions."""
         key = event.key
+
+        # Move session to workspace (Shift+1-9 after Ctrl+B)
+        if key in ["!", "@", "#", "$", "%", "^", "&", "*", "("]:
+            # Map Shift+number to workspace number
+            shift_map = {"!": 1, "@": 2, "#": 3, "$": 4, "%": 5, "^": 6, "&": 7, "*": 8, "(": 9}
+            workspace_num = shift_map[key]
+            await self.action_move_session_to_workspace(workspace_num)
+            self.enter_normal_mode()
+            event.stop()
+            return
 
         # Command mode actions (after Ctrl+B)
         if key == "c":

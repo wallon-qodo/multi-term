@@ -23,6 +23,8 @@ class HeaderBar(Static):
     """
 
     session_count = reactive(0)
+    active_workspace = reactive(1)  # Default to workspace 1
+    workspace_sessions = reactive({i: 0 for i in range(1, 10)})  # Session count per workspace
 
     def render(self) -> Text:
         """Render header content with OpenClaw styling."""
@@ -34,7 +36,44 @@ class HeaderBar(Static):
         text.append("CLAUDE MULTI-TERMINAL", style="bold rgb(255,77,77)")
         text.append(" ", style="")
 
-        # Session badge with OpenClaw colors
+        # Workspace indicators section
+        text.append("┃", style="rgb(120,120,120)")
+        text.append(" ", style="")
+
+        for i in range(1, 10):
+            # Workspace number with styling
+            if i == self.active_workspace:
+                # Active workspace: coral background
+                text.append("[", style="bold rgb(255,77,77)")
+                text.append(str(i), style="bold rgb(255,255,255) on rgb(255,77,77)")
+
+                # Show session count if any
+                session_count = self.workspace_sessions.get(i, 0)
+                if session_count > 0:
+                    text.append("•", style="bold rgb(255,255,255) on rgb(255,77,77)")
+                    text.append(str(session_count), style="bold rgb(255,255,255) on rgb(255,77,77)")
+
+                text.append("]", style="bold rgb(255,77,77)")
+            else:
+                # Inactive workspace: dim border
+                session_count = self.workspace_sessions.get(i, 0)
+                if session_count > 0:
+                    # Has sessions: show with count
+                    text.append("[", style="dim rgb(120,120,120)")
+                    text.append(str(i), style="rgb(180,180,180)")
+                    text.append("•", style="dim rgb(120,120,120)")
+                    text.append(str(session_count), style="rgb(180,180,180)")
+                    text.append("]", style="dim rgb(120,120,120)")
+                else:
+                    # Empty workspace: very dim
+                    text.append("[", style="dim rgb(80,80,80)")
+                    text.append(str(i), style="dim rgb(120,120,120)")
+                    text.append("]", style="dim rgb(80,80,80)")
+
+            # Spacing between workspace indicators
+            text.append(" ", style="")
+
+        # Session badge with OpenClaw colors (total active sessions)
         if self.session_count > 0:
             badge_color = "rgb(120,200,120)" if self.session_count <= 4 else "rgb(255,180,70)"
             text.append("┃", style="rgb(120,120,120)")
@@ -85,3 +124,36 @@ class HeaderBar(Static):
         text.append(f" {tz_abbr}", style="dim rgb(150,150,180)")
 
         return text
+
+    def set_active_workspace(self, workspace_id: int) -> None:
+        """Set the active workspace (1-9).
+
+        Args:
+            workspace_id: Workspace number (1-9)
+        """
+        if 1 <= workspace_id <= 9:
+            self.active_workspace = workspace_id
+
+    def update_workspace_sessions(self, workspace_id: int, count: int) -> None:
+        """Update session count for a specific workspace.
+
+        Args:
+            workspace_id: Workspace number (1-9)
+            count: Number of sessions in the workspace
+        """
+        if 1 <= workspace_id <= 9:
+            sessions = dict(self.workspace_sessions)  # Create mutable copy
+            sessions[workspace_id] = count
+            self.workspace_sessions = sessions  # Trigger reactive update
+
+    def update_all_workspace_sessions(self, session_counts: dict) -> None:
+        """Update session counts for all workspaces.
+
+        Args:
+            session_counts: Dict mapping workspace_id (1-9) to session count
+        """
+        sessions = {i: 0 for i in range(1, 10)}  # Initialize all to 0
+        for workspace_id, count in session_counts.items():
+            if 1 <= workspace_id <= 9:
+                sessions[workspace_id] = count
+        self.workspace_sessions = sessions

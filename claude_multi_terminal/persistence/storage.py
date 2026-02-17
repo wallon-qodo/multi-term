@@ -21,10 +21,10 @@ import glob
 import json
 import logging
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional, List, Dict
 from dataclasses import asdict
 
-from .session_state import WorkspaceState, SessionState
+from .session_state import WorkspaceState, SessionState, WorkspaceData
 
 # Configure module logger
 logger = logging.getLogger(__name__)
@@ -78,6 +78,7 @@ class SessionStorage:
         self.storage_dir = storage_dir
         self.state_file = self.storage_dir / "workspace_state.json"
         self.history_dir = self.storage_dir / "history"
+        self.workspaces_file = self.storage_dir / "workspaces.json"
 
         # Create directory structure
         try:
@@ -451,3 +452,145 @@ class SessionStorage:
                 'oldest_session': None,
                 'newest_session': None
             }
+
+    def save_workspaces(self, workspaces: Dict[int, WorkspaceData]) -> bool:
+        """Save all workspaces to disk.
+
+        Atomically writes all workspace data to a single JSON file using
+        a temporary file and rename to prevent corruption. Creates a backup
+        of the previous workspaces file if it exists.
+
+        Args:
+            workspaces: Dictionary mapping workspace IDs to WorkspaceData objects
+
+        Returns:
+            True if save was successful, False otherwise
+
+        Example:
+            >>> storage = SessionStorage()
+            >>> workspaces = {
+            ...     1: WorkspaceData(workspace_id="ws_1", name="Dev", ...),
+            ...     2: WorkspaceData(workspace_id="ws_2", name="Test", ...)
+            ... }
+            >>> if storage.save_workspaces(workspaces):
+            ...     print("Workspaces saved successfully")
+        """
+        try:
+            # Create backup of existing workspaces file
+            if self.workspaces_file.exists():
+                backup_file = self.workspaces_file.with_suffix('.bak')
+                shutil.copy2(self.workspaces_file, backup_file)
+                logger.debug(f"Created backup at {backup_file}")
+
+            # Convert workspaces to serializable format
+            workspaces_data = {
+                str(ws_id): workspace.to_dict()
+                for ws_id, workspace in workspaces.items()
+            }
+
+            # Write to temporary file first (atomic operation)
+            temp_file = self.workspaces_file.with_suffix('.tmp')
+            with open(temp_file, 'w', encoding='utf-8') as f:
+                json.dump(workspaces_data, f, indent=2)
+                f.flush()
+                os.fsync(f.fileno())  # Ensure data is written to disk
+
+            # Atomic rename
+            temp_file.replace(self.workspaces_file)
+            logger.info(f"Saved {len(workspaces)} workspace(s)")
+            return True
+
+        except (OSError, IOError) as e:
+            logger.error(f"Failed to save workspaces: {e}")
+            return False
+        except Exception as e:
+            logger.exception(f"Unexpected error saving workspaces: {e}")
+            return False
+
+    def load_workspaces(self) -> Optional[Dict[int, WorkspaceData]]:
+        """Load all workspaces from disk.
+
+        Attempts to load and deserialize the workspaces file. If the file
+        is corrupted, attempts to load from backup. Creates a backup of
+        any corrupted file for debugging.
+
+        Returns:
+            Dictionary mapping workspace IDs to WorkspaceData objects if loaded
+            successfully, None if file doesn't exist or is unrecoverable
+
+        Example:
+            >>> storage = SessionStorage()
+            >>> workspaces = storage.load_workspaces()
+            >>> if workspaces:
+            ...     print(f"Loaded {len(workspaces)} workspace(s)")
+            ... else:
+            ...     print("No saved workspaces found")
+        """
+        if not self.workspaces_file.exists():
+            logger.debug("No saved workspaces file found")
+            return None
+
+        try:
+            with open(self.workspaces_file, 'r', encoding='utf-8') as f:
+                content = f.read()
+                data = json.loads(content)
+
+                # Convert to WorkspaceData objects
+                workspaces = {}
+                for ws_id_str, ws_data in data.items():
+                    try:
+                        ws_id = int(ws_id_str)
+                        workspace = WorkspaceData.from_dict(ws_data)
+                        workspaces[ws_id] = workspace
+                    except (ValueError, KeyError, TypeError) as e:
+                        logger.warning(f"Skipping invalid workspace {ws_id_str}: {e}")
+                        continue
+
+                logger.info(f"Loaded {len(workspaces)} workspace(s)")
+                return workspaces
+
+        except (json.JSONDecodeError, ValueError) as e:
+            logger.error(f"Corrupted workspaces file: {e}")
+
+            # Try to recover from backup
+            backup_file = self.workspaces_file.with_suffix('.bak')
+            if backup_file.exists():
+                try:
+                    logger.info("Attempting to load from backup")
+                    with open(backup_file, 'r', encoding='utf-8') as f:
+                        data = json.loads(f.read())
+
+                        # Convert to WorkspaceData objects
+                        workspaces = {}
+                        for ws_id_str, ws_data in data.items():
+                            try:
+                                ws_id = int(ws_id_str)
+                                workspace = WorkspaceData.from_dict(ws_data)
+                                workspaces[ws_id] = workspace
+                            except (ValueError, KeyError, TypeError) as e:
+                                logger.warning(f"Skipping invalid workspace {ws_id_str}: {e}")
+                                continue
+
+                        logger.info("Successfully recovered from backup")
+                        return workspaces
+                except Exception as backup_error:
+                    logger.error(f"Backup recovery failed: {backup_error}")
+
+            # Archive corrupted file
+            try:
+                corrupted_file = self.workspaces_file.with_name(
+                    f"corrupted_{int(time.time())}_{self.workspaces_file.name}"
+                )
+                shutil.copy2(self.workspaces_file, corrupted_file)
+                logger.warning(f"Corrupted workspaces file archived to {corrupted_file}")
+            except Exception:
+                pass
+
+            return None
+
+        except (OSError, IOError) as e:
+            logger.error(f"Failed to read workspaces file: {e}")
+            return None
+        except Exception as e:
+            logger.exception(f"Unexpected error loading workspaces: {e}")
+            return None
