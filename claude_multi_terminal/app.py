@@ -95,7 +95,8 @@ class ClaudeMultiTerminalApp(App):
     def __init__(self, *args, **kwargs):
         """Initialize the application."""
         super().__init__(*args, **kwargs)
-        self.session_manager = SessionManager(claude_path=Config.CLAUDE_PATH)
+        from .config import config
+        self.session_manager = SessionManager(claude_path=config.CLAUDE_PATH)
         self.broadcast_mode = False
         self.clip_manager_buffer = ""
         self.storage = SessionStorage()

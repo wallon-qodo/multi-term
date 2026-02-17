@@ -35,7 +35,7 @@ class Config:
     """
 
     # Claude CLI configuration
-    CLAUDE_PATH: str = field(default_factory=lambda: Config.detect_claude_path())
+    CLAUDE_PATH: str = field(default="")
 
     # Session configuration
     DEFAULT_SESSION_COUNT: int = 2
@@ -226,9 +226,18 @@ class Config:
 
     def __post_init__(self) -> None:
         """Post-initialization validation and setup."""
+        # Initialize CLAUDE_PATH if not set
+        if not self.CLAUDE_PATH:
+            self.CLAUDE_PATH = self.detect_claude_path()
+
         # Ensure STORAGE_DIR is a Path object
         if isinstance(self.STORAGE_DIR, str):
             self.STORAGE_DIR = Path(self.STORAGE_DIR)
 
         # Expand user paths
         self.STORAGE_DIR = self.STORAGE_DIR.expanduser().resolve()
+
+
+# Default configuration instance
+# This can be imported and used directly: from .config import config
+config = Config()
