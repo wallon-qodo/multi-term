@@ -4,6 +4,7 @@ from textual.containers import Container, Horizontal, Vertical
 from textual.widget import Widget
 from textual.reactive import reactive
 from textual import events
+from textual.message import Message
 from textual.app import ComposeResult
 from rich.text import Text
 from typing import TYPE_CHECKING, Optional, List
@@ -21,6 +22,7 @@ class Splitter(Widget):
     Splitter {
         width: 1;
         background: rgb(60,60,60);
+        transition: background 150ms in_out_cubic;
     }
 
     Splitter:hover {
@@ -118,16 +120,70 @@ class SplitterDragged(events.Message):
 
 
 class ResizablePane(Container):
-    """Container wrapper that can be resized."""
+    """Container wrapper that can be resized and dragged."""
 
     DEFAULT_CSS = """
     ResizablePane {
-        height: auto;
-        width: auto;
         min-width: 30;
         min-height: 10;
+        border: solid rgb(42, 42, 42);
+    }
+
+    ResizablePane .drag-handle {
+        height: 1;
+        width: 100%;
+        background: rgb(42, 42, 42);
+        color: rgb(100, 100, 100);
+        content-align: center middle;
+        dock: top;
+    }
+
+    ResizablePane .drag-handle:hover {
+        background: rgb(60, 60, 60);
+        color: rgb(255, 77, 77);
+    }
+
+    ResizablePane.dragging {
+        opacity: 0.8;
+        border: thick rgb(255, 77, 77);
+    }
+
+    ResizablePane.dragging .drag-handle {
+        background: rgb(255, 77, 77);
+        color: rgb(255, 255, 255);
+    }
+
+    ResizablePane.drop-target {
+        border: solid rgb(255, 100, 100);
+    }
+
+    ResizablePane.drop-target .drag-handle {
+        background: rgb(255, 100, 100);
+    }
+
+    ResizablePane.drop-target-active {
+        border: thick rgb(255, 77, 77);
+    }
+
+    ResizablePane.drop-target-active .drag-handle {
+        background: rgb(255, 77, 77);
     }
     """
+
+    class DragStarted(Message):
+        """Posted when pane drag starts."""
+        def __init__(self, pane: "ResizablePane", session_id: str):
+            super().__init__()
+            self.pane = pane
+            self.session_id = session_id
+
+    class DragEnded(Message):
+        """Posted when pane drag ends."""
+        def __init__(self, pane: "ResizablePane", session_id: str, target_session_id: str | None):
+            super().__init__()
+            self.pane = pane
+            self.session_id = session_id
+            self.target_session_id = target_session_id
 
     def __init__(self, content: Widget, **kwargs):
         """
@@ -138,10 +194,83 @@ class ResizablePane(Container):
         """
         super().__init__(**kwargs)
         self.content = content
+        self.can_focus = True
+        self.is_being_dragged = False
+        self.drag_start_pos = None
+        self.drag_threshold = 5
+        self.drag_handle = None
 
     def compose(self) -> ComposeResult:
         """Compose the pane with its content."""
+        from textual.widgets import Static
+        self.drag_handle = Static("⣿", classes="drag-handle", id="drag-handle")
+        yield self.drag_handle
         yield self.content
+
+    def on_mouse_down(self, event: events.MouseDown) -> None:
+        """Handle mouse down - start potential drag only from handle."""
+        if event.button == 1:  # Left click
+            # Check if click is in the drag handle area (top line of pane)
+            # Drag handle is 1 line tall at the top
+            is_on_drag_handle = event.y < 1
+
+            if is_on_drag_handle:
+                self.drag_start_pos = (event.screen_x, event.screen_y)
+                self.capture_mouse()
+                event.stop()
+
+    def on_mouse_move(self, event: events.MouseMove) -> None:
+        """Handle mouse move - detect drag threshold."""
+        if self.drag_start_pos and not self.is_being_dragged:
+            dx = abs(event.screen_x - self.drag_start_pos[0])
+            dy = abs(event.screen_y - self.drag_start_pos[1])
+
+            if dx > self.drag_threshold or dy > self.drag_threshold:
+                self.is_being_dragged = True
+                self.add_class("dragging")
+                # Get session_id from content (SessionPane)
+                session_id = getattr(self.content, 'session_id', None)
+                if session_id:
+                    self.post_message(self.DragStarted(self, session_id))
+                event.stop()
+
+    def on_mouse_up(self, event: events.MouseUp) -> None:
+        """Handle mouse up - complete drag operation."""
+        if self.is_being_dragged:
+            # Find target pane
+            target_session_id = None
+            try:
+                widget_at_pos = self.screen.get_widget_at(event.screen_x, event.screen_y)[0]
+                # Walk up to find ResizablePane
+                while widget_at_pos and not isinstance(widget_at_pos, ResizablePane):
+                    widget_at_pos = widget_at_pos.parent
+
+                if isinstance(widget_at_pos, ResizablePane) and widget_at_pos != self:
+                    target_session_id = getattr(widget_at_pos.content, 'session_id', None)
+            except:
+                pass
+
+            session_id = getattr(self.content, 'session_id', None)
+            if session_id:
+                self.post_message(self.DragEnded(self, session_id, target_session_id))
+
+            self.is_being_dragged = False
+            self.remove_class("dragging")
+            event.stop()
+
+        self.drag_start_pos = None
+        try:
+            self.release_mouse()
+        except:
+            pass  # Already released
+
+    def set_drop_target(self, is_target: bool) -> None:
+        """Set drop target visual state."""
+        self.set_class(is_target, "drop-target")
+
+    def set_drop_target_active(self, is_active: bool) -> None:
+        """Set active drop target visual state."""
+        self.set_class(is_active, "drop-target-active")
 
 
 class ResizableSessionGrid(Container):
@@ -170,6 +299,9 @@ class ResizableSessionGrid(Container):
         self.focus_mode_enabled = False
         self.focused_session_id = None
         self.original_panes = []  # Store original panes for restoring
+
+        # Drag state for drag-to-swap
+        self.dragged_session_id = None
 
     async def add_session(self, session_id: str, session_manager: "SessionManager") -> None:
         """
@@ -541,3 +673,76 @@ class ResizableSessionGrid(Container):
         # Apply new fractional heights using Textual's fr unit format
         top_pane.styles.height = f"{top_fr}fr"
         bottom_pane.styles.height = f"{bottom_fr}fr"
+
+    def on_resizable_pane_drag_started(self, message: ResizablePane.DragStarted) -> None:
+        """Handle start of drag operation."""
+        self.dragged_session_id = message.session_id
+
+        # Highlight all other containers as potential drop targets
+        for container in self.containers:
+            if isinstance(container, ResizablePane):
+                container_session_id = getattr(container.content, 'session_id', None)
+                if container_session_id and container_session_id != message.session_id:
+                    container.set_drop_target(True)
+
+        message.stop()
+
+    async def on_resizable_pane_drag_ended(self, message: ResizablePane.DragEnded) -> None:
+        """Handle end of drag operation."""
+        # Clear all drop target highlights
+        for container in self.containers:
+            if isinstance(container, ResizablePane):
+                container.set_drop_target(False)
+                container.set_drop_target_active(False)
+
+        # If dropped on valid target, perform swap
+        if message.target_session_id:
+            await self._swap_sessions(message.session_id, message.target_session_id)
+
+        self.dragged_session_id = None
+        message.stop()
+
+    def on_mouse_move(self, event: events.MouseMove) -> None:
+        """Update drop target highlighting during drag."""
+        if self.dragged_session_id:
+            # Find which pane is under cursor
+            try:
+                widget_at_pos = self.screen.get_widget_at(event.screen_x, event.screen_y)
+                widget = widget_at_pos[0] if isinstance(widget_at_pos, tuple) else widget_at_pos
+
+                # Walk up to find ResizablePane
+                while widget and not isinstance(widget, ResizablePane):
+                    widget = widget.parent
+
+                # Update active drop target highlighting
+                for container in self.containers:
+                    if isinstance(container, ResizablePane):
+                        container_session_id = getattr(container.content, 'session_id', None)
+                        if container_session_id and container_session_id != self.dragged_session_id:
+                            is_active = (isinstance(widget, ResizablePane) and
+                                       getattr(widget.content, 'session_id', None) == container_session_id)
+                            container.set_drop_target_active(is_active)
+            except Exception:
+                pass
+
+    async def _swap_sessions(self, source_id: str, target_id: str) -> None:
+        """Swap two sessions in the panes list and rebuild layout."""
+        # Find indices of the panes to swap
+        source_idx = None
+        target_idx = None
+
+        for i, pane in enumerate(self.panes):
+            if pane.session_id == source_id:
+                source_idx = i
+            if pane.session_id == target_id:
+                target_idx = i
+
+        if source_idx is not None and target_idx is not None:
+            # Swap the panes in the list
+            self.panes[source_idx], self.panes[target_idx] = self.panes[target_idx], self.panes[source_idx]
+
+            # Ensure pane_count is still correct
+            self.pane_count = len(self.panes)
+
+            # Rebuild layout to reflect swap
+            await self._rebuild_layout()

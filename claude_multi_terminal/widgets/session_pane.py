@@ -208,6 +208,21 @@ class SessionPane(Vertical):
             self.screen_x = screen_x
             self.screen_y = screen_y
 
+    class DragStarted(Message):
+        """Posted when drag operation starts."""
+
+        def __init__(self, session_id: str):
+            super().__init__()
+            self.session_id = session_id
+
+    class DragEnded(Message):
+        """Posted when drag operation ends."""
+
+        def __init__(self, session_id: str, target_session_id: str | None):
+            super().__init__()
+            self.session_id = session_id
+            self.target_session_id = target_session_id
+
     DEFAULT_CSS = """
     SessionPane {
         border: heavy rgb(60,60,60);
@@ -230,6 +245,22 @@ class SessionPane(Vertical):
         background: rgb(45,45,50);
         color: rgb(100,180,240);
         border-bottom: solid rgb(100,180,240);
+    }
+
+    SessionPane.dragging {
+        opacity: 0.6;
+        border: solid rgb(255, 77, 77);
+        layer: dragging;
+    }
+
+    SessionPane.drop-target {
+        border: solid rgb(255, 100, 100);
+        background: rgb(40, 40, 40);
+    }
+
+    SessionPane.drop-target-active {
+        border: thick rgb(255, 77, 77);
+        background: rgb(50, 50, 50);
     }
 
     SessionPane .session-header {
@@ -451,6 +482,11 @@ class SessionPane(Vertical):
         # Real-time status tracking for user feedback
         self._current_status = "Initializing"
         self._status_history: Deque[str] = deque(maxlen=10)  # Keep last 10 status updates
+
+        # Drag-to-swap state
+        self.is_being_dragged = False
+        self.drag_start_pos = None
+        self.drag_threshold = 5
 
     def _log(self, msg: str):
         """Write to debug log."""
@@ -677,7 +713,7 @@ class SessionPane(Vertical):
         input_widget.focus()
 
     def on_mouse_down(self, event: events.MouseDown) -> None:
-        """Handle mouse clicks - detect right-click for context menu."""
+        """Handle mouse clicks - detect right-click for context menu and left-click for drag."""
         # Right-click - show context menu
         if event.button == 3:
             # Calculate screen coordinates for context menu
@@ -686,6 +722,55 @@ class SessionPane(Vertical):
             self.post_message(self.ContextMenuRequested(self, self.session_id, screen_x, screen_y))
             event.stop()
             return
+
+        # Left-click - start potential drag operation
+        if event.button == 1:
+            self.drag_start_pos = (event.screen_x, event.screen_y)
+            self.capture_mouse()
+            event.stop()
+
+    def on_mouse_move(self, event: events.MouseMove) -> None:
+        """Handle mouse movement for drag detection."""
+        if self.drag_start_pos and not self.is_being_dragged:
+            dx = abs(event.screen_x - self.drag_start_pos[0])
+            dy = abs(event.screen_y - self.drag_start_pos[1])
+
+            if dx > self.drag_threshold or dy > self.drag_threshold:
+                self.is_being_dragged = True
+                self.add_class("dragging")
+                self.post_message(self.DragStarted(self.session_id))
+                event.stop()
+
+    def on_mouse_up(self, event: events.MouseUp) -> None:
+        """Handle mouse release to complete drag operation."""
+        if self.is_being_dragged:
+            try:
+                target_widget = self.screen.get_widget_at(event.screen_x, event.screen_y)[0]
+                target_id = None
+
+                if isinstance(target_widget, SessionPane) and target_widget != self:
+                    target_id = target_widget.session_id
+            except:
+                target_id = None
+
+            self.post_message(self.DragEnded(self.session_id, target_id))
+            self.is_being_dragged = False
+            self.remove_class("dragging")
+            event.stop()
+
+        self.drag_start_pos = None
+        try:
+            self.release_mouse()
+        except:
+            pass
+
+    def set_drop_target(self, is_target: bool) -> None:
+        """Mark this pane as a drop target."""
+        self.set_class(is_target, "drop-target")
+
+    def set_drop_target_active(self, is_active: bool) -> None:
+        """Mark this pane as the active drop target."""
+        self.set_class(is_active, "drop-target-active")
 
     def _handle_output(self, output: str) -> None:
         """
