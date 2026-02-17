@@ -13,7 +13,6 @@ import os
 import shutil
 from pathlib import Path
 
-from .app import ClaudeMultiTerminalApp
 from .config import Config
 
 
@@ -67,6 +66,9 @@ def main() -> None:
         except Exception as e:
             print(f"Configuration error: {e}", file=sys.stderr)
             sys.exit(2)
+
+        # Import app here to avoid module loading warning
+        from .app import ClaudeMultiTerminalApp
 
         # Create and run app
         app = ClaudeMultiTerminalApp()
