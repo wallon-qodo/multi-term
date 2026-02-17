@@ -19,6 +19,8 @@ from .widgets.session_history_browser import SessionHistoryBrowser
 from .widgets.context_menu import ContextMenu
 from .widgets.color_picker import ColorPickerDialog
 from .widgets.workspace_manager import WorkspaceManager
+from .widgets.footer_hints import FooterHints
+from .help.help_overlay import HelpOverlay
 from .config import Config
 from .persistence.storage import SessionStorage
 from .persistence.session_state import WorkspaceState, SessionState, WorkspaceData
@@ -106,6 +108,7 @@ class ClaudeMultiTerminalApp(App):
         self.workspaces = {}  # Dict[int, WorkspaceData] - workspace persistence
         self.current_workspace_id = None  # Track active workspace
         self.layout_manager = LayoutManager()  # Phase 3: Layout management
+        self.help_overlay = None  # Phase 5: Lazy-load help overlay when needed
 
     def compose(self) -> ComposeResult:
         """Compose the application layout."""
@@ -113,6 +116,7 @@ class ClaudeMultiTerminalApp(App):
         yield TabBar(id="tab-bar")
         yield ResizableSessionGrid(id="session-grid")
         yield StatusBar()
+        yield FooterHints()  # Phase 5: Contextual keyboard hints
         yield SearchPanel(id="search-panel")
 
     async def on_mount(self) -> None:
@@ -178,12 +182,35 @@ class ClaudeMultiTerminalApp(App):
         status_bar = self.query_one(StatusBar)
         status_bar.current_mode = self.mode
 
-        # Show helpful tip about text selection
-        self.notify(
-            "✅ Text selection enabled! Click & drag to highlight, right-click to copy",
-            severity="information",
-            timeout=8
-        )
+        # Initialize footer hints with current mode
+        try:
+            footer = self.query_one(FooterHints)
+            footer.current_mode = self.mode
+        except:
+            pass
+
+        # Phase 5: First-time user welcome hint
+        import os
+        first_run_marker = os.path.expanduser("~/.multi-term/.first_run")
+        if not os.path.exists(first_run_marker):
+            # Create marker directory and file
+            os.makedirs(os.path.dirname(first_run_marker), exist_ok=True)
+            with open(first_run_marker, 'w') as f:
+                f.write("")
+
+            # Show welcome message
+            self.notify(
+                "Welcome! Press ? or Ctrl+B ? for help",
+                severity="information",
+                timeout=5
+            )
+        else:
+            # Show helpful tip about text selection
+            self.notify(
+                "✅ Text selection enabled! Click & drag to highlight, right-click to copy",
+                severity="information",
+                timeout=8
+            )
 
     async def on_unmount(self) -> None:
         """Clean up and save workspace on exit."""
@@ -1422,6 +1449,16 @@ class ClaudeMultiTerminalApp(App):
             is_active=pane.is_active
         )
 
+    async def action_show_help(self) -> None:
+        """Show help overlay (Ctrl+B ?)."""
+        if self.help_overlay is None:
+            self.help_overlay = HelpOverlay(current_mode=self.mode)
+        else:
+            self.help_overlay.current_mode = self.mode
+
+        await self.push_screen(self.help_overlay)
+        self.notify("Help overlay (Press ? or Esc to close)", severity="information", timeout=2)
+
     # Modal System - Mode Transition Methods
     def enter_normal_mode(self) -> None:
         """Enter NORMAL mode - window management and navigation."""
@@ -1429,6 +1466,14 @@ class ClaudeMultiTerminalApp(App):
         self.command_prefix_active = False
         status_bar = self.query_one(StatusBar)
         status_bar.current_mode = AppMode.NORMAL
+
+        # Update footer hints
+        try:
+            footer = self.query_one(FooterHints)
+            footer.current_mode = AppMode.NORMAL
+        except:
+            pass
+
         self.notify("Mode: NORMAL", severity="information", timeout=1)
 
     def enter_insert_mode(self) -> None:
@@ -1437,6 +1482,14 @@ class ClaudeMultiTerminalApp(App):
         self.command_prefix_active = False
         status_bar = self.query_one(StatusBar)
         status_bar.current_mode = AppMode.INSERT
+
+        # Update footer hints
+        try:
+            footer = self.query_one(FooterHints)
+            footer.current_mode = AppMode.INSERT
+        except:
+            pass
+
         self.notify("Mode: INSERT", severity="information", timeout=1)
 
     def enter_copy_mode(self) -> None:
@@ -1445,6 +1498,14 @@ class ClaudeMultiTerminalApp(App):
         self.command_prefix_active = False
         status_bar = self.query_one(StatusBar)
         status_bar.current_mode = AppMode.COPY
+
+        # Update footer hints
+        try:
+            footer = self.query_one(FooterHints)
+            footer.current_mode = AppMode.COPY
+        except:
+            pass
+
         self.notify("Mode: COPY (scrollback navigation)", severity="information", timeout=2)
 
     def enter_command_mode(self) -> None:
@@ -1453,6 +1514,14 @@ class ClaudeMultiTerminalApp(App):
         self.command_prefix_active = True
         status_bar = self.query_one(StatusBar)
         status_bar.current_mode = AppMode.COMMAND
+
+        # Update footer hints
+        try:
+            footer = self.query_one(FooterHints)
+            footer.current_mode = AppMode.COMMAND
+        except:
+            pass
+
         self.notify("Mode: COMMAND (awaiting command)", severity="information", timeout=2)
 
     async def on_key(self, event: Key) -> None:
@@ -1487,6 +1556,12 @@ class ClaudeMultiTerminalApp(App):
     async def _handle_normal_mode_key(self, event: Key) -> None:
         """Handle keys in NORMAL mode - window management and navigation."""
         key = event.key
+
+        # Phase 5: Show help (? in NORMAL mode)
+        if key == "question_mark":  # ?
+            await self.action_show_help()
+            event.stop()
+            return
 
         # Enter INSERT mode
         if key == "i" or key == "enter":
@@ -1630,6 +1705,13 @@ class ClaudeMultiTerminalApp(App):
     async def _handle_command_mode_key(self, event: Key) -> None:
         """Handle keys in COMMAND mode - prefix key actions."""
         key = event.key
+
+        # Phase 5: Help overlay (Ctrl+B ?)
+        if key == "question_mark":  # ?
+            await self.action_show_help()
+            self.enter_normal_mode()
+            event.stop()
+            return
 
         # Move session to workspace (Shift+1-9 after Ctrl+B)
         if key in ["!", "@", "#", "$", "%", "^", "&", "*", "("]:
