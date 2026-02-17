@@ -1,0 +1,206 @@
+╔═══════════════════════════════════════════════════════════════════════════════╗
+║                    CONTEXT MENU VISUAL MOCKUP                                 ║
+╚═══════════════════════════════════════════════════════════════════════════════╝
+
+SCENARIO 1: Context Menu with No Selection
+═══════════════════════════════════════════════════════════════════════════════
+
+Terminal Output Area:
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ Welcome to Claude Multi-Terminal!                                            │
+│                                                                               │
+│ > user: Hello, can you help me?                                              │
+│ > assistant: Of course! I'd be happy to help.                                │
+│                                                                               │
+│ > user: Tell me about Python.                                                │
+│ > assistant: Python is a high-level programming language...                  │
+│                 [User Right-Clicks Here]                                      │
+│                                 ↓                                             │
+│                   ┌────────────────────────────────┐                          │
+│                   │ Copy              Ctrl+C       │ ← Dimmed (disabled)     │
+│                   │ Select All        Ctrl+A       │ ← Active                │
+│                   │ Clear Selection   Esc          │ ← Dimmed (disabled)     │
+│                   └────────────────────────────────┘                          │
+│                     Amber border (rgb(255,183,77))                            │
+│                     Dark background (rgb(32,32,32))                           │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+SCENARIO 2: Context Menu with Active Selection
+═══════════════════════════════════════════════════════════════════════════════
+
+Terminal Output Area with Selected Text:
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ Welcome to Claude Multi-Terminal!                                            │
+│                                                                               │
+│ > user: Hello, can you help me?                                              │
+│ > assistant: Of course! I'd be happy to help.                                │
+│                                                                               │
+│ > user: Tell me about Python.                                                │
+│ > assistant: ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓                   │
+│              ▓Python is a high-level programming▓                             │
+│              ▓language...▓                                                    │
+│              ▓▓▓▓▓▓▓▓▓▓▓▓    [User Right-Clicks on Selection]                │
+│                                 ↓                                             │
+│                   ┌────────────────────────────────┐                          │
+│                   │ Copy              Ctrl+C       │ ← Active (all enabled)  │
+│                   │ Select All        Ctrl+A       │ ← Active                │
+│                   │ Clear Selection   Esc          │ ← Active                │
+│                   └────────────────────────────────┘                          │
+│                                                                               │
+│ ▓ = Selected text with highlight (rgb(60,50,30) background)                  │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+SCENARIO 3: Menu Item Hover State
+═══════════════════════════════════════════════════════════════════════════════
+
+When user hovers over "Select All":
+                   ┌────────────────────────────────┐
+                   │ Copy              Ctrl+C       │ ← Normal
+                   ├────────────────────────────────┤
+                   │▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓│
+                   │▓Select All        Ctrl+A      ▓│ ← AMBER HIGHLIGHT
+                   │▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓│    Background: rgb(255,183,77)
+                   ├────────────────────────────────┤    Text: rgb(24,24,24) (dark)
+                   │ Clear Selection   Esc          │ ← Normal
+                   └────────────────────────────────┘
+
+
+COLOR LEGEND
+═══════════════════════════════════════════════════════════════════════════════
+
+Menu Container:
+┌─────────────── Amber Border: rgb(255,183,77) ───────────────┐
+│ Background: rgb(32,32,32) - Secondary background            │
+└──────────────────────────────────────────────────────────────┘
+
+Active Menu Item (Normal):
+│ Text: rgb(224,224,224) - Off-white                           │
+│ Background: rgb(32,32,32)                                    │
+
+Active Menu Item (Hover):
+│▓ Text: rgb(24,24,24) - Dark for contrast                    ▓│
+│▓ Background: rgb(255,183,77) - Amber highlight              ▓│
+
+Disabled Menu Item:
+│ Text: rgb(117,117,117) - Dimmed gray                         │
+│ Background: rgb(32,32,32)                                    │
+
+
+INTERACTION FLOW
+═══════════════════════════════════════════════════════════════════════════════
+
+1. OPENING THE MENU
+   User Action: Right-click (button 3) anywhere in text area
+   Result: Menu appears at cursor coordinates (x, y)
+
+2. HOVERING OVER ITEMS
+   User Action: Move mouse over menu item
+   Result: Item background changes to amber, text darkens
+
+3. CLICKING AN ITEM
+   User Action: Left-click on enabled menu item
+   Result: Action executes (copy/select all/clear), menu dismisses
+
+4. DISMISSING THE MENU
+   Options:
+   - Click outside the menu → Menu disappears
+   - Press Escape key → Menu disappears
+   - Click a menu item → Action executes, menu disappears
+   - Right-click again → New menu replaces old menu
+
+
+KEYBOARD SHORTCUTS (Also shown in menu)
+═══════════════════════════════════════════════════════════════════════════════
+
+Ctrl+C / Cmd+C .......... Copy selected text to clipboard
+Ctrl+A / Cmd+A .......... Select all text in output
+Esc ..................... Clear selection or dismiss menu
+
+
+BOUNDARY DETECTION
+═══════════════════════════════════════════════════════════════════════════════
+
+If menu would extend beyond screen edges, it automatically adjusts:
+
+Right Edge:          Bottom Edge:
+Screen →│           Screen →─────────
+        │                         ↓
+      ┌─┴──────────────┐         ┌────────────────┐
+      │ Copy    Ctrl+C │         │ Copy    Ctrl+C │
+      │ Select All     │         │ Select All     │
+      │ Clear   Esc    │         │ Clear   Esc    │
+      └────────────────┘         └────────────────┘
+      ↑                                           ↑
+      Shifted left                     Shifted up
+
+
+MEASUREMENTS
+═══════════════════════════════════════════════════════════════════════════════
+
+Menu Width: ~32 characters (including border)
+Menu Height: Number of items + 2 (for borders)
+Item Height: 1 line per item
+Item Padding: 0 vertical, 2 horizontal (spaces on each side)
+Border: 1 character width (Textual solid border)
+
+
+ASCII BOX CHARACTERS USED
+═══════════════════════════════════════════════════════════════════════════════
+
+The menu uses Textual's built-in border rendering, which typically uses:
+
+┌─┐  Top edge
+│ │  Vertical edges
+└─┘  Bottom edge
+
+For visual mockups in this document:
+═══ Double line for section headers
+─── Single line for separators
+│   Vertical dividers
+▓   Highlighted/selected areas
+
+
+EXAMPLE: Complete Terminal View
+═══════════════════════════════════════════════════════════════════════════════
+
+╔═══════════════════════════════════════════════════════════════════════════════╗
+║ Claude Multi-Terminal                                              [Session 1] ║
+╠═══════════════════════════════════════════════════════════════════════════════╣
+║                                                                                 ║
+║  > user: What is Python?                                                       ║
+║  > assistant: Python is a high-level, interpreted programming language         ║
+║    known for its simplicity and readability. Created by Guido van Rossum       ║
+║    in 1991, it emphasizes code ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓                 ║
+║    readability and allows prog▓▓mmers to express concepts in fewer lines.      ║
+║                                ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓                  ║
+║                                 ┌────────────────────────────────┐             ║
+║  > user: Tell me about its fea │ Copy              Ctrl+C       │             ║
+║  > assistant: Python has many  │ Select All        Ctrl+A       │             ║
+║    including:                   │ Clear Selection   Esc          │             ║
+║    • Dynamic typing             └────────────────────────────────┘             ║
+║    • Automatic memory management                                               ║
+║    • Large standard library                                                    ║
+║    • Cross-platform support                                                    ║
+║                                                                                 ║
+╠═══════════════════════════════════════════════════════════════════════════════╣
+║ Ctrl+N New | Ctrl+W Close | Ctrl+R Rename | F1 Help              Active │ 1/4 ║
+╚═══════════════════════════════════════════════════════════════════════════════╝
+
+▓ = Selected text with brown highlight
+Context menu shown with amber border overlaying the content
+
+
+NOTES
+═══════════════════════════════════════════════════════════════════════════════
+
+1. Menu appears exactly where the user right-clicks
+2. Menu is always on the overlay layer (appears above all content)
+3. Menu automatically positions itself to stay within screen bounds
+4. Only one context menu can be active at a time
+5. Menu dismisses automatically after executing an action
+6. All actions are also available via keyboard shortcuts
+7. Disabled items are clearly indicated with dimmed text
+8. Hover feedback is immediate and visually distinct
+

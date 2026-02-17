@@ -1,0 +1,195 @@
+# Claude Multi-Terminal
+
+A modern, TUIOS-inspired multi-session terminal UI for Claude CLI with advanced window management capabilities.
+
+## Overview
+
+Claude Multi-Terminal brings powerful window management and multi-session capabilities to the Claude CLI experience. Inspired by TUIOS (The Ultimate Interactive Operating System), it provides an intuitive, tile-based interface for managing multiple Claude sessions simultaneously.
+
+## Features
+
+### TUIOS-Inspired Design
+- **Binary Space Partitioning (BSP) Tiling**: Intelligent automatic window layout that maximizes screen space
+- **Drag-to-Swap Windows**: Intuitive mouse-based window reordering
+- **Flexible Split Modes**: Split horizontally or vertically on demand
+- **Visual Focus Indicators**: Clear borders and highlighting for active windows
+
+### Multi-Session Management
+- **Independent Claude Sessions**: Run multiple Claude CLI instances simultaneously
+- **Session Persistence**: Sessions maintain state across window operations
+- **Quick Navigation**: Keyboard shortcuts for rapid session switching
+- **Session Tabs**: Visual tabs for easy session identification
+
+### Terminal Capabilities
+- **Full PTY Support**: Native terminal emulation via ptyprocess
+- **Rich Text Rendering**: Syntax highlighting and ANSI color support
+- **Clipboard Integration**: Copy/paste with system clipboard
+- **Scrollback Buffer**: Full terminal history with mouse wheel support
+
+### Window Management
+- **Dynamic Layouts**: Resize, split, and reorganize windows on the fly
+- **Focus Management**: Intelligent focus handling with visual feedback
+- **Keyboard-Driven**: Comprehensive keybindings for power users
+- **Mouse-Friendly**: Full mouse support for drag-and-drop operations
+
+### Development Features
+- **Hot Reload**: Automatic code reload during development
+- **Performance Monitoring**: Built-in metrics and profiling
+- **Debug Mode**: Detailed logging and diagnostics
+- **Extensible Architecture**: Plugin-ready design for future enhancements
+
+## Installation
+
+### Prerequisites
+- Python 3.10 or higher
+- Claude CLI installed and configured
+
+### Install from source
+
+```bash
+# Clone the repository
+git clone https://github.com/wallonwalusayi/claude-multi-terminal.git
+cd claude-multi-terminal
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Install the package
+pip install -e .
+```
+
+### Install with development dependencies
+
+```bash
+pip install -e ".[dev]"
+```
+
+## Quick Start
+
+### Launch the application
+
+```bash
+multi-term
+```
+
+### Basic Usage
+
+1. **Create a new session**: Press `Ctrl+N` or click the "New Session" button
+2. **Switch between sessions**: Use `Ctrl+1` through `Ctrl+9` or click session tabs
+3. **Split windows**: Press `Ctrl+H` (horizontal) or `Ctrl+V` (vertical)
+4. **Close sessions**: Press `Ctrl+W` or click the close button on a session tab
+5. **Quit application**: Press `Ctrl+Q`
+
+## Keybindings
+
+### Session Management
+- `Ctrl+N`: Create new session
+- `Ctrl+W`: Close current session
+- `Ctrl+1-9`: Switch to session 1-9
+- `Ctrl+Tab`: Next session
+- `Ctrl+Shift+Tab`: Previous session
+
+### Window Management
+- `Ctrl+H`: Split horizontally
+- `Ctrl+V`: Split vertically
+- `Ctrl+Arrow`: Navigate between windows
+- `Ctrl+Shift+Arrow`: Swap windows
+- `Ctrl+R`: Rotate window layout
+
+### Terminal Operations
+- `Ctrl+C`: Copy selected text
+- `Ctrl+Shift+V`: Paste from clipboard
+- `Scroll`: Navigate terminal history
+- `Ctrl+L`: Clear terminal
+
+### Application
+- `Ctrl+Q`: Quit application
+- `F1`: Show help
+- `F11`: Toggle fullscreen
+
+For a complete keybinding reference, see [KEYBINDINGS.md](docs/KEYBINDINGS.md)
+
+## Screenshots
+
+> Screenshots coming soon
+
+## Architecture
+
+The application is built with a modular architecture:
+
+- **Terminal Engine**: PTY management and terminal emulation
+- **Window Manager**: BSP tiling and layout management
+- **Session Manager**: Multi-session coordination
+- **UI Layer**: Textual-based rich interface
+- **Event System**: Reactive event handling
+
+For detailed architecture documentation, see [ARCHITECTURE.md](docs/ARCHITECTURE.md)
+
+## Development
+
+### Project Structure
+
+```
+claude-multi-terminal/
+├── claude_multi_terminal/
+│   ├── __init__.py
+│   ├── __main__.py
+│   ├── app.py                 # Main application
+│   ├── terminal.py            # Terminal management
+│   ├── window_manager.py      # Window/layout management
+│   └── ui/                    # UI components
+├── tests/                     # Test suite
+├── docs/                      # Documentation
+├── requirements.txt           # Dependencies
+├── pyproject.toml            # Project configuration
+└── README.md                 # This file
+```
+
+### Development Guidelines
+
+This project follows the development guidelines outlined in [CLAUDE.md](CLAUDE.md), including:
+
+- Adaptive Intelligence System integration
+- Critical thinking framework for problem-solving
+- Quality-first approach with automated testing
+- Performance optimization with caching
+
+### Running Tests
+
+```bash
+pytest
+```
+
+### Code Formatting
+
+```bash
+# Format code
+black .
+
+# Type checking
+mypy claude_multi_terminal
+```
+
+## Contributing
+
+Contributions are welcome! Please read our contributing guidelines before submitting pull requests.
+
+## License
+
+MIT License - see [LICENSE](LICENSE) for details
+
+## Acknowledgments
+
+- Inspired by [TUIOS](https://tuios.org/) window management concepts
+- Built with [Textual](https://textual.textualize.io/) framework
+- Designed for [Claude CLI](https://claude.ai/claude-code)
+
+## Links
+
+- **Documentation**: [docs/](docs/)
+- **Issue Tracker**: [GitHub Issues](https://github.com/wallonwalusayi/claude-multi-terminal/issues)
+- **Development Guide**: [CLAUDE.md](CLAUDE.md)
+
+---
+
+**Version**: 0.1.0 | **Status**: Alpha | **Python**: 3.10+

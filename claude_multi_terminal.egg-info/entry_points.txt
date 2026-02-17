@@ -1,0 +1,2 @@
+[console_scripts]
+multi-term = claude_multi_terminal.__main__:main

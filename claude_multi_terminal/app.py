@@ -3,6 +3,7 @@
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.widgets import Input
+from textual.events import Key
 from typing import Optional
 
 from .core.session_manager import SessionManager
@@ -21,6 +22,7 @@ from .widgets.workspace_manager import WorkspaceManager
 from .config import Config
 from .persistence.storage import SessionStorage
 from .persistence.session_state import WorkspaceState, SessionState
+from .types import AppMode
 
 
 class ClaudeMultiTerminalApp(App):
@@ -98,6 +100,8 @@ class ClaudeMultiTerminalApp(App):
         self.mouse_enabled = False  # Start with text selection enabled
         self.focus_mode = False
         self.focused_session_id = None
+        self.mode: AppMode = AppMode.NORMAL  # Start in NORMAL mode
+        self.command_prefix_active = False  # Track if Ctrl+B was pressed
 
     def compose(self) -> ComposeResult:
         """Compose the application layout."""
@@ -157,6 +161,10 @@ class ClaudeMultiTerminalApp(App):
         grid = self.query_one("#session-grid", ResizableSessionGrid)
         if grid.panes:
             grid.panes[0].focus()
+
+        # Initialize status bar with current mode
+        status_bar = self.query_one(StatusBar)
+        status_bar.current_mode = self.mode
 
         # Show helpful tip about text selection
         self.notify(
@@ -1044,3 +1052,262 @@ class ClaudeMultiTerminalApp(App):
             output_snapshot=output_snapshot,
             is_active=pane.is_active
         )
+
+    # Modal System - Mode Transition Methods
+    def enter_normal_mode(self) -> None:
+        """Enter NORMAL mode - window management and navigation."""
+        self.mode = AppMode.NORMAL
+        self.command_prefix_active = False
+        status_bar = self.query_one(StatusBar)
+        status_bar.current_mode = AppMode.NORMAL
+        self.notify("Mode: NORMAL", severity="information", timeout=1)
+
+    def enter_insert_mode(self) -> None:
+        """Enter INSERT mode - all keys forwarded to active session."""
+        self.mode = AppMode.INSERT
+        self.command_prefix_active = False
+        status_bar = self.query_one(StatusBar)
+        status_bar.current_mode = AppMode.INSERT
+        self.notify("Mode: INSERT", severity="information", timeout=1)
+
+    def enter_copy_mode(self) -> None:
+        """Enter COPY mode - scrollback navigation and text selection."""
+        self.mode = AppMode.COPY
+        self.command_prefix_active = False
+        status_bar = self.query_one(StatusBar)
+        status_bar.current_mode = AppMode.COPY
+        self.notify("Mode: COPY (scrollback navigation)", severity="information", timeout=2)
+
+    def enter_command_mode(self) -> None:
+        """Enter COMMAND mode - prefix key mode (Ctrl+B then action)."""
+        self.mode = AppMode.COMMAND
+        self.command_prefix_active = True
+        status_bar = self.query_one(StatusBar)
+        status_bar.current_mode = AppMode.COMMAND
+        self.notify("Mode: COMMAND (awaiting command)", severity="information", timeout=2)
+
+    async def on_key(self, event: Key) -> None:
+        """
+        Handle all key presses based on current mode.
+
+        Mode routing:
+        - NORMAL: Window management keys (n, x, h/j/k/l, etc.)
+        - INSERT: Forward all keys to active session
+        - COPY: Scrollback navigation keys
+        - COMMAND: Prefix key mode (Ctrl+B then action)
+
+        ESC always returns to NORMAL mode.
+        'i' or Enter in NORMAL → INSERT mode.
+        """
+        # ESC always returns to NORMAL mode
+        if event.key == "escape":
+            self.enter_normal_mode()
+            event.stop()
+            return
+
+        # Handle mode-specific key routing
+        if self.mode == AppMode.NORMAL:
+            await self._handle_normal_mode_key(event)
+        elif self.mode == AppMode.INSERT:
+            await self._handle_insert_mode_key(event)
+        elif self.mode == AppMode.COPY:
+            await self._handle_copy_mode_key(event)
+        elif self.mode == AppMode.COMMAND:
+            await self._handle_command_mode_key(event)
+
+    async def _handle_normal_mode_key(self, event: Key) -> None:
+        """Handle keys in NORMAL mode - window management and navigation."""
+        key = event.key
+
+        # Enter INSERT mode
+        if key == "i" or key == "enter":
+            self.enter_insert_mode()
+            event.stop()
+            return
+
+        # Enter COPY mode
+        if key == "v":
+            self.enter_copy_mode()
+            event.stop()
+            return
+
+        # Enter COMMAND mode
+        if key == "ctrl+b":
+            self.enter_command_mode()
+            event.stop()
+            return
+
+        # Window management keys (delegate to existing handlers)
+        if key == "n":
+            await self.action_new_session()
+            event.stop()
+        elif key == "x":
+            await self.action_close_session()
+            event.stop()
+        elif key == "h":
+            self.screen.focus_previous()
+            event.stop()
+        elif key == "l":
+            self.screen.focus_next()
+            event.stop()
+        elif key == "j":
+            # Focus next pane vertically (cycle through)
+            self.screen.focus_next()
+            event.stop()
+        elif key == "k":
+            # Focus previous pane vertically (cycle through)
+            self.screen.focus_previous()
+            event.stop()
+        elif key == "r":
+            await self.action_rename_session()
+            event.stop()
+        elif key == "s":
+            await self.action_save_sessions()
+            event.stop()
+        elif key == "L" or key == ":":
+            await self.action_load_sessions()
+            event.stop()
+        elif key == "f":
+            await self.action_toggle_focus()
+            event.stop()
+        elif key == "b":
+            await self.action_toggle_broadcast()
+            event.stop()
+        elif key == "q":
+            await self.action_quit()
+            event.stop()
+        # If no match, let the default handler process it
+
+    async def _handle_insert_mode_key(self, event: Key) -> None:
+        """Handle keys in INSERT mode - forward all to active session."""
+        # Get the focused pane
+        focused_pane = self._get_focused_pane()
+
+        if not focused_pane:
+            # No active session, return to NORMAL mode
+            self.enter_normal_mode()
+            event.stop()
+            return
+
+        # Forward key to the session's input widget
+        # Let the SessionPane handle the key naturally
+        # Don't stop the event - let it propagate to the input widget
+        pass
+
+    async def _handle_copy_mode_key(self, event: Key) -> None:
+        """Handle keys in COPY mode - scrollback navigation."""
+        key = event.key
+
+        # Get the focused pane
+        focused_pane = self._get_focused_pane()
+
+        if not focused_pane:
+            self.enter_normal_mode()
+            event.stop()
+            return
+
+        # Scrollback navigation keys
+        if key == "j" or key == "down":
+            # Scroll down (implement scrolling in SessionPane)
+            focused_pane.scroll_down()
+            event.stop()
+        elif key == "k" or key == "up":
+            # Scroll up
+            focused_pane.scroll_up()
+            event.stop()
+        elif key == "d":
+            # Scroll half page down
+            focused_pane.scroll_page_down(half=True)
+            event.stop()
+        elif key == "u":
+            # Scroll half page up
+            focused_pane.scroll_page_up(half=True)
+            event.stop()
+        elif key == "f":
+            # Scroll full page down
+            focused_pane.scroll_page_down(half=False)
+            event.stop()
+        elif key == "b":
+            # Scroll full page up
+            focused_pane.scroll_page_up(half=False)
+            event.stop()
+        elif key == "g":
+            # Go to top
+            focused_pane.scroll_to_top()
+            event.stop()
+        elif key == "G":
+            # Go to bottom
+            focused_pane.scroll_to_bottom()
+            event.stop()
+        elif key == "y":
+            # Yank (copy) selected text
+            await self.action_copy_output()
+            event.stop()
+
+    async def _handle_command_mode_key(self, event: Key) -> None:
+        """Handle keys in COMMAND mode - prefix key actions."""
+        key = event.key
+
+        # Command mode actions (after Ctrl+B)
+        if key == "c":
+            # Create new session
+            await self.action_new_session()
+            self.enter_normal_mode()
+            event.stop()
+        elif key == "x":
+            # Close session
+            await self.action_close_session()
+            self.enter_normal_mode()
+            event.stop()
+        elif key == "n":
+            # Next pane
+            await self.action_next_pane()
+            self.enter_normal_mode()
+            event.stop()
+        elif key == "p":
+            # Previous pane
+            await self.action_prev_pane()
+            self.enter_normal_mode()
+            event.stop()
+        elif key == "[":
+            # Copy mode
+            self.enter_copy_mode()
+            event.stop()
+        elif key == "r":
+            # Rename
+            await self.action_rename_session()
+            self.enter_normal_mode()
+            event.stop()
+        elif key == "f":
+            # Focus mode
+            await self.action_toggle_focus()
+            self.enter_normal_mode()
+            event.stop()
+        elif key == "s":
+            # Save sessions
+            await self.action_save_sessions()
+            self.enter_normal_mode()
+            event.stop()
+        elif key == "L":
+            # Load sessions
+            await self.action_load_sessions()
+            self.enter_normal_mode()
+            event.stop()
+        elif key == "h":
+            # History browser
+            await self.action_show_history()
+            self.enter_normal_mode()
+            event.stop()
+        elif key == "b":
+            # Toggle broadcast
+            await self.action_toggle_broadcast()
+            self.enter_normal_mode()
+            event.stop()
+        elif key == "q":
+            # Quit
+            await self.action_quit()
+            event.stop()
+        else:
+            # Unknown command, return to NORMAL mode
+            self.enter_normal_mode()
+            event.stop()

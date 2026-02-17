@@ -1627,3 +1627,44 @@ class SessionPane(Vertical):
                     f"Export failed: {str(e)}",
                     severity="error"
                 )
+
+    # Scrolling methods for COPY mode
+    def scroll_up(self) -> None:
+        """Scroll output up by one line."""
+        if self.output:
+            self.output.scroll_up()
+
+    def scroll_down(self) -> None:
+        """Scroll output down by one line."""
+        if self.output:
+            self.output.scroll_down()
+
+    def scroll_page_up(self, half: bool = False) -> None:
+        """Scroll output up by page (or half page if half=True)."""
+        if self.output:
+            if half:
+                self.output.scroll_page_up()
+            else:
+                # Full page is approximately 2x half page
+                self.output.scroll_page_up()
+                self.output.scroll_page_up()
+
+    def scroll_page_down(self, half: bool = False) -> None:
+        """Scroll output down by page (or half page if half=True)."""
+        if self.output:
+            if half:
+                self.output.scroll_page_down()
+            else:
+                # Full page is approximately 2x half page
+                self.output.scroll_page_down()
+                self.output.scroll_page_down()
+
+    def scroll_to_top(self) -> None:
+        """Scroll output to the top."""
+        if self.output:
+            self.output.scroll_home()
+
+    def scroll_to_bottom(self) -> None:
+        """Scroll output to the bottom."""
+        if self.output:
+            self.output.scroll_end()

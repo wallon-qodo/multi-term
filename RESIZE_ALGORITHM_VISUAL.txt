@@ -1,0 +1,335 @@
+═══════════════════════════════════════════════════════════════════════════════
+                    RESIZABLE GRID DRAG-TO-RESIZE ALGORITHM
+═══════════════════════════════════════════════════════════════════════════════
+
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                        MOUSE EVENT FLOW                                   ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+    User Action              Event Handler              State Update
+    ───────────             ──────────────             ─────────────
+        │                                                    │
+        ├─► Click Splitter ──► on_mouse_down() ──────────► is_dragging = True
+        │                         │                         drag_start_x = 100
+        │                         │                         last_x = 100
+        │                         ├─► capture_mouse()      [Visual: Gold highlight]
+        │                         └─► add_class("dragging")
+        │
+        ├─► Drag Mouse ──────► on_mouse_move() ──────────► delta = 105 - 100 = 5
+        │     (x=105)             │                         last_x = 105
+        │                         └─► post_message(SplitterDragged(delta=5))
+        │                                   │
+        │                                   └─► on_splitter_dragged()
+        │                                            │
+        │                                            ├─► _resize_vertical_panes(delta=5)
+        │                                            │        │
+        │                                            │        ├─► Calculate new sizes
+        │                                            │        ├─► Apply constraints
+        │                                            │        └─► Update styles
+        │                                            │
+        │                                            └─► Textual re-layout
+        │                                                     │
+        │                                                     └─► Panes resize
+        │
+        ├─► Continue Drag ──► on_mouse_move() ──────────► delta = 108 - 105 = 3
+        │     (x=108)             │                         last_x = 108
+        │                         └─► [Repeat cycle...]
+        │
+        └─► Release Mouse ───► on_mouse_up() ────────────► is_dragging = False
+              (x=115)              │                         [Visual: Orange hover]
+                                   ├─► release_mouse()
+                                   └─► remove_class("dragging")
+
+
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                    VERTICAL RESIZE ALGORITHM                              ║
+║                    (Left/Right Pane Adjustment)                           ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+Initial State:
+┌─────────────────────────┃─────────────────────────────────────┐
+│      Left Pane          ┃         Right Pane                  │
+│     width = 80          ┃        width = 120                  │
+│                         ┃                                     │
+└─────────────────────────┃─────────────────────────────────────┘
+                          ↑
+                      Splitter at x=80
+                      total_width = 200
+
+
+User drags splitter RIGHT by 10 pixels (delta_x = +10):
+
+Step 1: Apply Delta
+   new_left_width = 80 + 10 = 90
+   new_right_width = 120 - 10 = 110
+
+Step 2: Check Minimum Constraints (min_width = 30)
+   ✓ new_left_width (90) >= 30
+   ✓ new_right_width (110) >= 30
+   [No adjustment needed]
+
+Step 3: Convert to Fractional Units (scale = 1000)
+   left_fr = int(90 * 1000 / 200) = 450
+   right_fr = int(110 * 1000 / 200) = 550
+
+   Verify: left_fr + right_fr = 450 + 550 = 1000 ✓
+
+Step 4: Apply Styles
+   left_pane.styles.width = "450fr"
+   right_pane.styles.width = "550fr"
+
+Result:
+┌─────────────────────────────┃─────────────────────────────┐
+│         Left Pane           ┃       Right Pane            │
+│       width = 90            ┃      width = 110            │
+│       (45% of 200)          ┃      (55% of 200)           │
+└─────────────────────────────┃─────────────────────────────┘
+                              ↑
+                          Splitter at x=90
+
+
+User drags splitter LEFT by 5 pixels (delta_x = -5):
+
+Step 1: Apply Delta
+   new_left_width = 90 - 5 = 85
+   new_right_width = 110 + 5 = 115
+
+Step 2: Check Minimum Constraints
+   ✓ new_left_width (85) >= 30
+   ✓ new_right_width (115) >= 30
+   [No adjustment needed]
+
+Step 3: Convert to Fractional Units
+   left_fr = int(85 * 1000 / 200) = 425
+   right_fr = int(115 * 1000 / 200) = 575
+
+Step 4: Apply Styles
+   left_pane.styles.width = "425fr"
+   right_pane.styles.width = "575fr"
+
+Result:
+┌───────────────────────┃─────────────────────────────────┐
+│     Left Pane         ┃         Right Pane              │
+│    width = 85         ┃        width = 115              │
+│    (42.5% of 200)     ┃        (57.5% of 200)           │
+└───────────────────────┃─────────────────────────────────┘
+                        ↑
+                    Splitter at x=85
+
+
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                    MINIMUM SIZE CONSTRAINT HANDLING                       ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+Scenario: User tries to make left pane too small
+
+Initial:
+┌──────┃──────────────────────────────────────────────────────┐
+│ Left ┃                 Right                                │
+│  35  ┃                  165                                 │
+└──────┃──────────────────────────────────────────────────────┘
+
+User drags LEFT by 10 pixels (delta_x = -10):
+
+Step 1: Apply Delta
+   new_left_width = 35 - 10 = 25  ← TOO SMALL!
+   new_right_width = 165 + 10 = 175
+
+Step 2: Check Minimum Constraints (min_width = 30)
+   ✗ new_left_width (25) < 30  ← VIOLATION!
+
+   Clamp to minimum:
+   new_left_width = 30
+   new_right_width = 200 - 30 = 170
+
+Step 3: Convert to Fractional Units
+   left_fr = int(30 * 1000 / 200) = 150
+   right_fr = int(170 * 1000 / 200) = 850
+
+Step 4: Apply Styles
+   left_pane.styles.width = "150fr"
+   right_pane.styles.width = "850fr"
+
+Result: Left pane STOPS at minimum width
+┌────┃────────────────────────────────────────────────────────┐
+│Left┃                    Right                               │
+│ 30 ┃                     170                                │
+└────┃────────────────────────────────────────────────────────┘
+     ↑
+  Splitter CANNOT move further left
+
+
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                    HORIZONTAL RESIZE ALGORITHM                            ║
+║                    (Top/Bottom Pane Adjustment)                           ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+Initial State:
+┌──────────────────────────────────────────────────┐
+│               Top Pane                           │
+│              height = 20                         │
+│                                                  │
+╞══════════════════════════════════════════════════╡ ← Horizontal Splitter
+│                                                  │
+│              Bottom Pane                         │
+│              height = 30                         │
+│                                                  │
+└──────────────────────────────────────────────────┘
+                total_height = 50
+
+
+User drags splitter DOWN by 5 lines (delta_y = +5):
+
+Step 1: Apply Delta
+   new_top_height = 20 + 5 = 25
+   new_bottom_height = 30 - 5 = 25
+
+Step 2: Check Minimum Constraints (min_height = 10)
+   ✓ new_top_height (25) >= 10
+   ✓ new_bottom_height (25) >= 10
+   [No adjustment needed]
+
+Step 3: Convert to Fractional Units (scale = 1000)
+   top_fr = int(25 * 1000 / 50) = 500
+   bottom_fr = int(25 * 1000 / 50) = 500
+
+Step 4: Apply Styles
+   top_pane.styles.height = "500fr"
+   bottom_pane.styles.height = "500fr"
+
+Result: Equal split (50/50)
+┌──────────────────────────────────────────────────┐
+│               Top Pane                           │
+│              height = 25                         │
+│                                                  │
+│                                                  │
+╞══════════════════════════════════════════════════╡
+│                                                  │
+│              Bottom Pane                         │
+│              height = 25                         │
+│                                                  │
+└──────────────────────────────────────────────────┘
+
+
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                    FRACTIONAL UNIT CONVERSION                             ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+Why use integer fractional units with a scale factor?
+
+Option 1: Percentage (0.0 - 1.0)
+   left_ratio = 0.45
+   right_ratio = 0.55
+   Problem: Floating-point precision errors accumulate over multiple resizes
+
+Option 2: Fractional String ("0.45fr")
+   left_pane.styles.width = "0.45fr"
+   Problem: Textual doesn't accept decimal fr values
+
+Option 3: Integer Fractional Units (scale = 1000) ✓
+   left_fr = 450  → "450fr"
+   right_fr = 550  → "550fr"
+   Benefits:
+   - No floating-point errors
+   - Native Textual support
+   - Precise calculations
+   - Scale factor of 1000 gives 0.1% precision
+
+
+Conversion Formula:
+   fr_value = int(size * scale_factor / total_size)
+
+Examples with scale = 1000:
+   25% → int(25 * 1000 / 100) = 250 → "250fr"
+   33% → int(33 * 1000 / 100) = 330 → "330fr"
+   50% → int(50 * 1000 / 100) = 500 → "500fr"
+   66% → int(66 * 1000 / 100) = 660 → "660fr"
+   75% → int(75 * 1000 / 100) = 750 → "750fr"
+
+
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                    COMPLETE DRAG SEQUENCE EXAMPLE                         ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+Initial Layout: 2-pane side-by-side (50/50 split)
+┌─────────────────────────┃─────────────────────────┐
+│         Left            ┃         Right           │
+│    width = 100          ┃    width = 100          │
+│    "500fr"              ┃    "500fr"              │
+└─────────────────────────┃─────────────────────────┘
+         100 chars        ↑         100 chars
+                      Mouse at x=100
+
+
+Event 1: Mouse Down at x=100
+   is_dragging = True
+   drag_start_x = 100
+   last_x = 100
+   [Visual: Splitter turns gold]
+
+Event 2: Mouse Move to x=105 (dragging right)
+   delta = 105 - 100 = 5
+   last_x = 105
+
+   Resize Calculation:
+      new_left = 100 + 5 = 105
+      new_right = 100 - 5 = 95
+      left_fr = 525, right_fr = 475
+
+   ┌───────────────────────────┃───────────────────────┐
+   │         Left              ┃       Right           │
+   │    width = 105 (52.5%)    ┃   width = 95 (47.5%)  │
+   └───────────────────────────┃───────────────────────┘
+                               ↑
+                           Mouse at x=105
+
+Event 3: Mouse Move to x=110 (continuing right)
+   delta = 110 - 105 = 5
+   last_x = 110
+
+   Resize Calculation:
+      new_left = 105 + 5 = 110
+      new_right = 95 - 5 = 90
+      left_fr = 550, right_fr = 450
+
+   ┌─────────────────────────────┃─────────────────────┐
+   │         Left                ┃      Right          │
+   │    width = 110 (55%)        ┃   width = 90 (45%)  │
+   └─────────────────────────────┃─────────────────────┘
+                                 ↑
+                             Mouse at x=110
+
+Event 4: Mouse Move to x=108 (dragging back left)
+   delta = 108 - 110 = -2
+   last_x = 108
+
+   Resize Calculation:
+      new_left = 110 - 2 = 108
+      new_right = 90 + 2 = 92
+      left_fr = 540, right_fr = 460
+
+   ┌────────────────────────────┃──────────────────────┐
+   │         Left               ┃       Right          │
+   │    width = 108 (54%)       ┃   width = 92 (46%)   │
+   └────────────────────────────┃──────────────────────┘
+                                ↑
+                            Mouse at x=108
+
+Event 5: Mouse Up at x=108
+   is_dragging = False
+   [Visual: Splitter returns to orange (hover) or gray (normal)]
+   Final layout applied and persists
+
+═══════════════════════════════════════════════════════════════════════════════
+
+Key Advantages of This Algorithm:
+
+✓ Smooth: Incremental deltas follow mouse precisely
+✓ Fast: Simple integer arithmetic, no complex calculations
+✓ Precise: Scale factor of 1000 provides 0.1% precision
+✓ Safe: Minimum size constraints prevent unusable layouts
+✓ Stable: Integer math eliminates floating-point errors
+✓ Responsive: Updates on every mouse move for immediate feedback
+✓ Efficient: Only calculates for panes adjacent to the dragged splitter
+
+═══════════════════════════════════════════════════════════════════════════════

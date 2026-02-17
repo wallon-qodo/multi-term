@@ -1,0 +1,228 @@
+╔═══════════════════════════════════════════════════════════════════════════════╗
+║                                                                               ║
+║  ✓  RIGHT-CLICK CONTEXT MENU IMPLEMENTED                                     ║
+║                                                                               ║
+╚═══════════════════════════════════════════════════════════════════════════════╝
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ FEATURE: RIGHT-CLICK CONTEXT MENU IN TEXT OUTPUT                            │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+  Visual Example:
+
+  ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+  ┃ Terminal Output Area                          ┃
+  ┃                                               ┃
+  ┃ $ ls -la                                      ┃
+  ┃ drwxr-xr-x  10 user  staff  320 Jan          ┃
+  ┃ -rw-r--r--   1 user  staff  142 Jan  ← Selected text
+  ┃                                               ┃
+  ┃     ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━┓            ┃
+  ┃     ┃ Copy              Ctrl+C ┃ ← Context Menu
+  ┃     ┃ Select All        Ctrl+A ┃
+  ┃     ┃ Clear Selection   Esc    ┃
+  ┃     ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━┛            ┃
+  ┃                                               ┃
+  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ HOW TO USE                                                                  │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+  1. **Right-Click in Output Area**
+     → Context menu appears at cursor position
+
+  2. **Menu Options:**
+
+     Copy (Ctrl+C)
+     • Copies selected text to clipboard
+     • Enabled only when text is selected
+     • Shows notification with character count
+
+     Select All (Ctrl+A)
+     • Selects all text in the output
+     • Always enabled
+     • Can also press Ctrl+A directly
+
+     Clear Selection (Esc)
+     • Clears current text selection
+     • Enabled only when text is selected
+     • Can also press Escape directly
+
+  3. **Menu Interaction:**
+     • Click any enabled option to execute
+     • Click outside menu to dismiss
+     • Press Escape to dismiss
+     • Disabled options shown in dimmed gray
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ VISUAL STATES                                                               │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+  Normal State (No Selection):
+  ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+  ┃ Copy              Ctrl+C ┃ ← Dimmed (disabled)
+  ┃ Select All        Ctrl+A ┃ ← Active
+  ┃ Clear Selection   Esc    ┃ ← Dimmed (disabled)
+  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+  With Selection:
+  ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+  ┃ Copy              Ctrl+C ┃ ← Active
+  ┃ Select All        Ctrl+A ┃ ← Active
+  ┃ Clear Selection   Esc    ┃ ← Active
+  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+  Hover State:
+  ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+  ┃█Copy              Ctrl+C█┃ ← Amber background, dark text
+  ┃ Select All        Ctrl+A ┃
+  ┃ Clear Selection   Esc    ┃
+  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ THEME INTEGRATION                                                           │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+  Homebrew Color Scheme Applied:
+  • Border: rgb(255,183,77) - Amber gold
+  • Background: rgb(32,32,32) - Warm charcoal
+  • Text: rgb(224,224,224) - Warm off-white
+  • Hover: Amber background with dark text
+  • Disabled: rgb(117,117,117) - Dimmed gray
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ KEYBOARD SHORTCUTS                                                          │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+  All shortcuts work with or without the context menu:
+
+  Ctrl+C (Cmd+C on Mac) → Copy selected text
+  Ctrl+A (Cmd+A on Mac) → Select all text
+  Escape                → Dismiss menu / Clear selection
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ TECHNICAL DETAILS                                                           │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+  Files Modified:
+  • selectable_richlog.py (663 lines)
+    - Added MenuItem dataclass
+    - Added ContextMenu widget class
+    - Enhanced event handlers for right-click
+    - Added _select_all() method
+    - Added _show_context_menu() method
+
+  New Components:
+  1. MenuItem - Dataclass for menu items
+     - label: Display text
+     - callback: Function to execute
+     - enabled: Whether item is active
+     - shortcut: Keyboard shortcut display
+
+  2. ContextMenu - Floating menu widget
+     - Positions at cursor coordinates
+     - Auto-adjusts for screen boundaries
+     - Styled with Homebrew theme
+     - Dismisses on outside click or Escape
+
+  3. Enhanced SelectableRichLog
+     - Detects right-click (button == 3)
+     - Creates and shows context menu
+     - Handles Ctrl+A for select all
+     - Improved Escape key handling
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ SMART FEATURES                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+  1. **Dynamic Enabling**
+     - Copy only enabled when text is selected
+     - Clear Selection only enabled when text is selected
+     - Select All always available
+
+  2. **Screen Boundary Detection**
+     - Menu automatically repositions if near edge
+     - Ensures menu stays fully visible
+     - No off-screen rendering
+
+  3. **Click-Outside Dismissal**
+     - Menu closes when clicking anywhere else
+     - Left-click in output also dismisses menu
+     - Clean UX without lingering menus
+
+  4. **Keyboard Integration**
+     - All menu actions have keyboard shortcuts
+     - Shortcuts work even without opening menu
+     - Escape dismisses menu or clears selection
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ TESTING                                                                     │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+  Run the test application:
+    $ python test_context_menu.py
+
+  Test scenarios:
+  ✓ Right-click with no selection → Copy/Clear disabled
+  ✓ Right-click with selection → All options enabled
+  ✓ Click menu items → Actions execute correctly
+  ✓ Click outside menu → Menu dismisses
+  ✓ Press Escape → Menu dismisses
+  ✓ Hover effects → Amber highlight works
+  ✓ Screen edge → Menu repositions correctly
+  ✓ Keyboard shortcuts → Work independently
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ LAUNCH THE APP                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+  cd /Users/wallonwalusayi/claude-multi-terminal
+  source venv/bin/activate
+  python -m claude_multi_terminal
+
+  Then:
+  1. Create a session
+  2. Send a command to Claude
+  3. Right-click in the output area
+  4. See the context menu appear!
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ SUMMARY                                                                     │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+  ╔═════════════════════════════════════════════════════════════════════════╗
+  ║  ✅ RIGHT-CLICK CONTEXT MENU COMPLETE!                                  ║
+  ║                                                                         ║
+  ║  • Right-click shows professional context menu                         ║
+  ║  • Copy, Select All, Clear Selection options                           ║
+  ║  • Smart enabling based on selection state                             ║
+  ║  • Homebrew theme colors (amber accents)                               ║
+  ║  • Hover effects with visual feedback                                  ║
+  ║  • Screen boundary detection                                           ║
+  ║  • Keyboard shortcuts displayed and functional                         ║
+  ║  • Click-outside dismissal                                             ║
+  ║  • Escape key support                                                  ║
+  ║  • Clean, professional UX                                              ║
+  ║                                                                         ║
+  ║  All Features Now Complete:                                            ║
+  ║  ✅ Resizable panes (drag dividers)                                    ║
+  ║  ✅ Text selection (click & drag, double/triple-click)                 ║
+  ║  ✅ Right-click context menu (NEW!)                                    ║
+  ║  ✅ Copy to clipboard (Ctrl+C)                                         ║
+  ║  ✅ Select all (Ctrl+A)                                                ║
+  ║  ✅ Slash command autocomplete                                         ║
+  ║  ✅ Animated processing indicators                                     ║
+  ║  ✅ Real-time metrics                                                  ║
+  ║  ✅ Conversation context                                               ║
+  ║  ✅ Claude logo                                                        ║
+  ║  ✅ Homebrew theme                                                     ║
+  ║                                                                         ║
+  ║  Ready for Production! 🚀                                              ║
+  ╚═════════════════════════════════════════════════════════════════════════╝
+
+════════════════════════════════════════════════════════════════════════════════
+
+                    Right-Click Away! 🖱️
+
+════════════════════════════════════════════════════════════════════════════════
