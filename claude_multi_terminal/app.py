@@ -96,7 +96,12 @@ class ClaudeMultiTerminalApp(App):
         """Initialize the application."""
         super().__init__(*args, **kwargs)
         from .config import config
+        from .streaming.stream_monitor import StreamMonitor
+        from .streaming.token_tracker import TokenTracker
+
         self.session_manager = SessionManager(claude_path=config.CLAUDE_PATH)
+        self.stream_monitor = StreamMonitor()
+        self.token_tracker = TokenTracker()
         self.broadcast_mode = False
         self.clip_manager_buffer = ""
         self.storage = SessionStorage()
@@ -212,6 +217,39 @@ class ClaudeMultiTerminalApp(App):
                 severity="information",
                 timeout=8
             )
+
+        # Start simulated token tracking (for demonstration)
+        self.set_interval(3.0, self._simulate_token_update)
+
+    def _simulate_token_update(self) -> None:
+        """Simulate token tracking for demo (real tracking requires API integration)."""
+        import random
+
+        # Simulate some realistic token counts
+        grid = self.query_one("#session-grid", ResizableSessionGrid)
+        if grid.panes and len(grid.panes) > 0:
+            # Pick a random active session
+            active_pane = random.choice(grid.panes)
+            session_id = active_pane.session_id
+
+            # Simulate streaming with random token count
+            tokens = random.randint(50, 200)
+            speed = random.uniform(30, 60)  # tokens/sec
+
+            # Update status bar
+            status_bar = self.query_one(StatusBar)
+            status_bar.streaming_tokens = tokens
+            status_bar.streaming_speed = speed
+
+            # Simulate total tokens for session
+            current_tokens = status_bar.session_tokens
+            status_bar.session_tokens = current_tokens + tokens
+
+            # Calculate cost (Sonnet 4.5 pricing: $0.003 input, $0.015 output)
+            # Assume 50/50 split
+            input_cost = (tokens / 2) * 0.003 / 1000
+            output_cost = (tokens / 2) * 0.015 / 1000
+            status_bar.session_cost += (input_cost + output_cost)
 
     async def on_unmount(self) -> None:
         """Clean up and save workspace on exit."""
