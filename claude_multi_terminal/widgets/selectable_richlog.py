@@ -1054,7 +1054,9 @@ class SelectableRichLog(RichLog):
     def on_mouse_scroll_down(self, event: events.MouseScrollDown) -> None:
         """Detect manual scroll down - re-enable auto-scroll if at bottom."""
         # Perform the scroll action with smooth animation
-        self.scroll_relative(y=event.y, animate=True, duration=0.15, easing="in_out_cubic")
+        # Reduce scroll speed to 40% for better control with scroll wheel
+        scroll_amount = max(1, int(event.y * 0.4))
+        self.scroll_relative(y=scroll_amount, animate=True, duration=0.15, easing="in_out_cubic")
 
         # If user scrolled to bottom, re-enable auto-scroll
         if self._user_scrolled_up and self._is_at_bottom():
@@ -1071,7 +1073,9 @@ class SelectableRichLog(RichLog):
     def on_mouse_scroll_up(self, event: events.MouseScrollUp) -> None:
         """Detect manual scroll up - disable auto-scroll."""
         # Perform the scroll action with smooth animation
-        self.scroll_relative(y=-event.y, animate=True, duration=0.15, easing="in_out_cubic")
+        # Reduce scroll speed to 40% for better control with scroll wheel
+        scroll_amount = max(1, int(event.y * 0.4))
+        self.scroll_relative(y=-scroll_amount, animate=True, duration=0.15, easing="in_out_cubic")
 
         # If user scrolls up, mark as manual scroll and disable auto-scroll
         if not self._is_at_bottom():
