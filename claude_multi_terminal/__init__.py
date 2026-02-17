@@ -25,7 +25,13 @@ Author: Claude Code Team
 License: MIT
 """
 
-from .app import ClaudeMultiTerminalApp
-
 __version__ = "0.1.0"
+
+# Lazy import to avoid module loading warnings when running with -m
+def __getattr__(name):
+    if name == "ClaudeMultiTerminalApp":
+        from .app import ClaudeMultiTerminalApp
+        return ClaudeMultiTerminalApp
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 __all__ = ["ClaudeMultiTerminalApp"]
