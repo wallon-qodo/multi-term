@@ -82,7 +82,7 @@ class SessionStorage:
         >>> loaded = storage.load_state()
     """
 
-    def __init__(self, storage_dir: Optional[Path] = None, lazy_loading: bool = LAZY_LOADING_ENABLED):
+    def __init__(self, storage_dir: Optional[Path] = None, lazy_loading: bool = LAZY_LOADING_ENABLED, enable_auto_archive: bool = True):
         """Initialize session storage with directory creation.
 
         Creates the storage directory structure if it doesn't exist. Uses
@@ -93,6 +93,8 @@ class SessionStorage:
                 ~/.multi-term/ (default). Directory will be created if it
                 doesn't exist.
             lazy_loading: Enable lazy loading for improved startup performance
+                (default: True)
+            enable_auto_archive: Enable automatic archiving of old sessions
                 (default: True)
 
         Example:
@@ -110,6 +112,7 @@ class SessionStorage:
         self.workspaces_file = self.storage_dir / "workspaces.json"
         self.lazy_loading = lazy_loading
         self._lazy_loader = None  # Initialized on demand
+        self.enable_auto_archive = enable_auto_archive
 
         # Create directory structure
         try:
@@ -122,6 +125,14 @@ class SessionStorage:
         except OSError as e:
             logger.error(f"Failed to create storage directories: {e}")
             raise
+
+        # Initialize archiver if enabled
+        if self.enable_auto_archive:
+            archiver = _get_archiver(self.storage_dir)
+            if archiver:
+                # Start background archiving (runs daily)
+                archiver.start_background_archiving(interval_hours=24)
+                logger.info("Started background session archiving")
 
     def save_state(self, workspace_state: WorkspaceState) -> bool:
         """Save current workspace state to disk.
@@ -628,6 +639,57 @@ class SessionStorage:
         except Exception as e:
             logger.exception(f"Unexpected error loading workspaces: {e}")
             return None
+
+    def get_archiver(self):
+        """Get archiver instance.
+
+        Returns:
+            SessionArchiver instance if archiving is enabled, None otherwise
+
+        Example:
+            >>> storage = SessionStorage()
+            >>> archiver = storage.get_archiver()
+            >>> if archiver:
+            ...     stats = archiver.get_archive_stats()
+            ...     print(f"Archive: {stats['total_sessions']} sessions")
+        """
+        if self.enable_auto_archive:
+            return _get_archiver(self.storage_dir)
+        return None
+
+    def archive_old_sessions(self, days: Optional[int] = None) -> dict:
+        """Manually trigger archiving of old sessions.
+
+        Args:
+            days: Age threshold in days. If None, uses archiver's default (30 days)
+
+        Returns:
+            Dictionary with archiving results:
+                - archived_count: Number of sessions archived
+                - failed_count: Number of failures
+                - space_saved_mb: Space saved by archiving
+
+        Example:
+            >>> storage = SessionStorage()
+            >>> result = storage.archive_old_sessions(days=7)
+            >>> print(f"Archived {result['archived_count']} sessions")
+        """
+        archiver = self.get_archiver()
+        if not archiver:
+            logger.warning("Archiving is disabled")
+            return {'archived_count': 0, 'failed_count': 0, 'space_saved_mb': 0.0}
+
+        # Temporarily adjust threshold if specified
+        original_days = archiver.archive_days
+        if days is not None:
+            archiver.archive_days = days
+
+        try:
+            result = archiver.auto_archive_old_sessions()
+            return result
+        finally:
+            # Restore original threshold
+            archiver.archive_days = original_days
 
     def get_lazy_loader(self):
         """Get or create lazy loader instance.
