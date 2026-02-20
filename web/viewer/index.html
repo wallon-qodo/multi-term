@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claude Multi-Terminal - Session Viewer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            background: #0a0e14;
+            color: #b3b9c5;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        #header {
+            background: #11151c;
+            padding: 1rem;
+            border-bottom: 2px solid #1f2937;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        #header h1 {
+            color: #59c2ff;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        #status {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ef4444;
+        }
+
+        .status-dot.connected {
+            background: #10b981;
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+        }
+
+        #participant-count {
+            background: #1f2937;
+            padding: 0.4rem 0.8rem;
+            border-radius: 4px;
+            font-size: 0.85rem;
+        }
+
+        #main-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        #terminal-container {
+            flex: 1;
+            background: #0a0e14;
+            padding: 1rem;
+            overflow: auto;
+            position: relative;
+        }
+
+        #terminal-output {
+            font-family: inherit;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            line-height: 1.5;
+            min-height: 100%;
+        }
+
+        #terminal-output .cursor {
+            background: #59c2ff;
+            color: #0a0e14;
+            padding: 0 2px;
+            margin: 0 2px;
+            position: relative;
+        }
+
+        #terminal-output .cursor::before {
+            content: attr(data-user);
+            position: absolute;
+            top: -20px;
+            left: 0;
+            font-size: 0.7rem;
+            background: #59c2ff;
+            color: #0a0e14;
+            padding: 2px 6px;
+            border-radius: 3px;
+            white-space: nowrap;
+        }
+
+        #sidebar {
+            width: 300px;
+            background: #11151c;
+            border-left: 2px solid #1f2937;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+
+        #sidebar-tabs {
+            display: flex;
+            background: #0d1117;
+            border-bottom: 1px solid #1f2937;
+        }
+
+        .sidebar-tab {
+            flex: 1;
+            padding: 0.75rem;
+            text-align: center;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            color: #6b7280;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .sidebar-tab:hover {
+            background: #1f2937;
+            color: #b3b9c5;
+        }
+
+        .sidebar-tab.active {
+            background: #11151c;
+            color: #59c2ff;
+            border-bottom: 2px solid #59c2ff;
+        }
+
+        #sidebar-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+        }
+
+        .participant-list {
+            list-style: none;
+        }
+
+        .participant-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem;
+            margin-bottom: 0.5rem;
+            background: #1f2937;
+            border-radius: 4px;
+        }
+
+        .participant-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .participant-info {
+            flex: 1;
+        }
+
+        .participant-name {
+            font-size: 0.9rem;
+            color: #e5e7eb;
+        }
+
+        .participant-status {
+            font-size: 0.75rem;
+            color: #6b7280;
+        }
+
+        #chat-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        #chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0.5rem;
+        }
+
+        .chat-message {
+            margin-bottom: 1rem;
+        }
+
+        .chat-message-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .chat-message-user {
+            font-weight: 600;
+            color: #59c2ff;
+            font-size: 0.85rem;
+        }
+
+        .chat-message-time {
+            font-size: 0.7rem;
+            color: #6b7280;
+        }
+
+        .chat-message-text {
+            padding-left: 2rem;
+            font-size: 0.9rem;
+            color: #b3b9c5;
+        }
+
+        #chat-input-container {
+            padding: 0.75rem;
+            border-top: 1px solid #1f2937;
+            background: #0d1117;
+        }
+
+        #chat-input {
+            width: 100%;
+            padding: 0.5rem;
+            background: #1f2937;
+            border: 1px solid #374151;
+            border-radius: 4px;
+            color: #e5e7eb;
+            font-family: inherit;
+            font-size: 0.9rem;
+        }
+
+        #chat-input:focus {
+            outline: none;
+            border-color: #59c2ff;
+        }
+
+        #loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(10, 14, 20, 0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        #loading-overlay.hidden {
+            display: none;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #1f2937;
+            border-top-color: #59c2ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            margin-top: 1rem;
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+
+        #error-message {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            background: #ef4444;
+            color: white;
+            padding: 1rem;
+            border-radius: 4px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            display: none;
+            z-index: 1001;
+        }
+
+        #error-message.visible {
+            display: block;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .access-badge {
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            border-radius: 3px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .access-badge.read-only {
+            background: #374151;
+            color: #9ca3af;
+        }
+
+        .access-badge.interactive {
+            background: #059669;
+            color: white;
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #0d1117;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #1f2937;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #374151;
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            #sidebar {
+                width: 100%;
+                max-height: 40vh;
+                border-left: none;
+                border-top: 2px solid #1f2937;
+            }
+
+            #main-container {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="header">
+        <h1>🖥️ Claude Multi-Terminal Viewer</h1>
+        <div id="status">
+            <div class="status-indicator">
+                <div id="status-dot" class="status-dot"></div>
+                <span id="status-text">Connecting...</span>
+            </div>
+            <div id="participant-count">👥 0 participants</div>
+            <span id="access-mode" class="access-badge read-only">Read Only</span>
+        </div>
+    </div>
+
+    <div id="main-container">
+        <div id="terminal-container">
+            <div id="terminal-output"></div>
+        </div>
+
+        <div id="sidebar">
+            <div id="sidebar-tabs">
+                <button class="sidebar-tab active" data-tab="participants">Participants</button>
+                <button class="sidebar-tab" data-tab="chat">Chat</button>
+            </div>
+            <div id="sidebar-content">
+                <div id="participants-tab" class="tab-content">
+                    <ul id="participant-list" class="participant-list"></ul>
+                </div>
+                <div id="chat-tab" class="tab-content" style="display: none;">
+                    <div id="chat-container">
+                        <div id="chat-messages"></div>
+                        <div id="chat-input-container">
+                            <input type="text" id="chat-input" placeholder="Type a message...">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="loading-overlay">
+        <div class="spinner"></div>
+        <div class="loading-text">Connecting to session...</div>
+    </div>
+
+    <div id="error-message"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>
