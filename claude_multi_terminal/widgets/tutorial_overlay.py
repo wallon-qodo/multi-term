@@ -13,6 +13,7 @@ from rich.console import Group
 from rich.markdown import Markdown
 
 from ..tutorial import Tutorial
+from ..animations import AnimationHelper, OVERLAY_SHOW
 
 
 class TutorialOverlay(Container):
@@ -71,6 +72,11 @@ class TutorialOverlay(Container):
     def on_mount(self) -> None:
         """Initialize the overlay when mounted."""
         self.refresh_content()
+
+        # Animate entrance if tutorial is active
+        if self.tutorial.active:
+            container = self.query_one(Vertical)
+            AnimationHelper.slide_in_from_bottom(container, duration=OVERLAY_SHOW["duration"])
 
     def refresh_content(self) -> None:
         """Refresh the tutorial content."""

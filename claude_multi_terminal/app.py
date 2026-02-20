@@ -26,6 +26,7 @@ from .persistence.storage import SessionStorage
 from .persistence.session_state import WorkspaceState, SessionState, WorkspaceData
 from .types import AppMode
 from .layout.layout_manager import LayoutManager
+from .animations import AnimationHelper, MODE_TRANSITION, WORKSPACE_SWITCH, PANE_FOCUS, OVERLAY_SHOW
 
 
 class ClaudeMultiTerminalApp(App):
@@ -702,6 +703,11 @@ class ClaudeMultiTerminalApp(App):
         """Focus next session pane."""
         self.screen.focus_next()
 
+        # Animate pane focus change
+        focused_pane = self._get_focused_pane()
+        if focused_pane:
+            AnimationHelper.pulse(focused_pane, intensity=0.2, duration=PANE_FOCUS["duration"])
+
         # Notify tutorial of pane switch
         if self.tutorial_mode and self.tutorial.active and self.tutorial_overlay:
             self.tutorial_overlay.handle_action("pane_switch")
@@ -709,6 +715,11 @@ class ClaudeMultiTerminalApp(App):
     async def action_prev_pane(self) -> None:
         """Focus previous session pane."""
         self.screen.focus_previous()
+
+        # Animate pane focus change
+        focused_pane = self._get_focused_pane()
+        if focused_pane:
+            AnimationHelper.pulse(focused_pane, intensity=0.2, duration=PANE_FOCUS["duration"])
 
         # Notify tutorial of pane switch
         if self.tutorial_mode and self.tutorial.active and self.tutorial_overlay:
@@ -1556,6 +1567,9 @@ class ClaudeMultiTerminalApp(App):
         status_bar = self.query_one(StatusBar)
         status_bar.current_mode = AppMode.NORMAL
 
+        # Animate status bar mode transition
+        AnimationHelper.pulse(status_bar, intensity=0.1, duration=MODE_TRANSITION["duration"])
+
         # Update footer hints
         try:
             footer = self.query_one(FooterHints)
@@ -1576,6 +1590,15 @@ class ClaudeMultiTerminalApp(App):
         status_bar = self.query_one(StatusBar)
         status_bar.current_mode = AppMode.INSERT
 
+        # Animate status bar mode transition
+        AnimationHelper.pulse(status_bar, intensity=0.15, duration=MODE_TRANSITION["duration"])
+
+        # Flash focused pane border to indicate active input
+        focused_pane = self._get_focused_pane()
+        if focused_pane:
+            theme = self.theme_manager.get_current_theme()
+            AnimationHelper.flash_border(focused_pane, theme.colors.accent_primary, duration=0.3)
+
         # Update footer hints
         try:
             footer = self.query_one(FooterHints)
@@ -1595,6 +1618,15 @@ class ClaudeMultiTerminalApp(App):
         self.command_prefix_active = False
         status_bar = self.query_one(StatusBar)
         status_bar.current_mode = AppMode.COPY
+
+        # Animate status bar mode transition
+        AnimationHelper.pulse(status_bar, intensity=0.15, duration=MODE_TRANSITION["duration"])
+
+        # Flash focused pane with selection color
+        focused_pane = self._get_focused_pane()
+        if focused_pane:
+            theme = self.theme_manager.get_current_theme()
+            AnimationHelper.flash_border(focused_pane, theme.colors.selection_bg, duration=0.3)
 
         # Update footer hints
         try:

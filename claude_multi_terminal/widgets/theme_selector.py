@@ -11,6 +11,7 @@ from rich.table import Table
 from rich.text import Text
 
 from ..themes import ThemeManager
+from ..animations import AnimationHelper, OVERLAY_SHOW, OVERLAY_HIDE
 
 
 class ThemeSelector(Container):
@@ -243,14 +244,24 @@ Tertiary: [on {colors.bg_tertiary}]        [/]
             pass
 
     def show(self) -> None:
-        """Show the theme selector."""
+        """Show the theme selector with animation."""
         self.remove_class("hidden")
         self.refresh_theme_list()
         self.refresh_preview()
 
+        # Animate entrance
+        container = self.query_one(Vertical)
+        AnimationHelper.slide_in_from_top(container, duration=OVERLAY_SHOW["duration"])
+
     def hide(self) -> None:
-        """Hide the theme selector."""
-        self.add_class("hidden")
+        """Hide the theme selector with animation."""
+        container = self.query_one(Vertical)
+
+        # Animate exit, then hide
+        def on_complete():
+            self.add_class("hidden")
+
+        AnimationHelper.slide_out_to_top(container, duration=OVERLAY_HIDE["duration"], callback=on_complete)
 
     # Custom message for theme changes
     class ThemeChanged:
