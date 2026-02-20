@@ -31,8 +31,14 @@ from .layout.layout_manager import LayoutManager
 class ClaudeMultiTerminalApp(App):
     """Main application orchestrating the multi-terminal interface."""
 
-    CSS_PATH = None  # Will use inline CSS
+    CSS_PATH = None  # Will use inline CSS (generated from theme)
     TITLE = "Claude Multi-Terminal"
+
+    def get_css(self) -> str:
+        """Generate CSS from current theme."""
+        base_css = self.CSS  # Base CSS
+        theme_css = self.theme_manager.generate_css()
+        return base_css + "\n\n" + theme_css
 
     BINDINGS = [
         Binding("ctrl+n", "new_session", "New Session"),
@@ -52,6 +58,7 @@ class ClaudeMultiTerminalApp(App):
         Binding("shift+tab", "prev_pane", "Prev Pane", priority=True),
         Binding("ctrl+c", "copy_output", "Copy Output", priority=True),
         Binding("f2", "toggle_mouse", "Toggle Mouse"),
+        Binding("f8", "show_themes", "Themes", priority=True),
         Binding("ctrl+q", "quit", "Quit"),
     ]
 
@@ -95,10 +102,11 @@ class ClaudeMultiTerminalApp(App):
     def __init__(self, *args, **kwargs):
         """Initialize the application."""
         super().__init__(*args, **kwargs)
-        from .config import config
+        from .config import config, Config
         from .streaming.stream_monitor import StreamMonitor
         from .streaming.token_tracker import TokenTracker
         from .tutorial import Tutorial
+        from .themes import ThemeManager
 
         self.session_manager = SessionManager(claude_path=config.CLAUDE_PATH)
         self.stream_monitor = StreamMonitor()
@@ -119,6 +127,8 @@ class ClaudeMultiTerminalApp(App):
         self.tutorial_mode = False  # Tutorial mode for first-time users
         self.tutorial = Tutorial()  # Tutorial system
         self.tutorial_overlay = None  # Tutorial overlay widget
+        self.theme_manager = ThemeManager(Config.get_config_dir())  # Theme system
+        self.theme_selector = None  # Theme selector widget
 
     def compose(self) -> ComposeResult:
         """Compose the application layout."""
@@ -1525,6 +1535,18 @@ class ClaudeMultiTerminalApp(App):
 
         await self.push_screen(self.help_overlay)
         self.notify("Help overlay (Press ? or Esc to close)", severity="information", timeout=2)
+
+    async def action_show_themes(self) -> None:
+        """Show theme selector dialog (F8)."""
+        if self.theme_selector is None:
+            # Lazy-load theme selector
+            from .widgets.theme_selector import ThemeSelector
+            self.theme_selector = ThemeSelector(self.theme_manager)
+            await self.mount(self.theme_selector)
+
+        # Show theme selector
+        self.theme_selector.show()
+        self.notify("Theme selector (Press Esc to close)", severity="information", timeout=2)
 
     # Modal System - Mode Transition Methods
     def enter_normal_mode(self) -> None:

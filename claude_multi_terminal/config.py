@@ -59,6 +59,19 @@ class Config:
     PTY_READ_INTERVAL: float = 0.01  # 100 Hz polling rate
     UI_UPDATE_INTERVAL: float = 0.016  # ~60 FPS UI refresh
 
+    # Theme configuration
+    THEME_NAME: str = "openclaw"  # Default theme
+
+    @staticmethod
+    def get_config_dir() -> Path:
+        """
+        Get the configuration directory.
+
+        Returns:
+            Path: Configuration directory path (~/.claude)
+        """
+        return Path.home() / ".claude"
+
     @staticmethod
     def detect_claude_path() -> str:
         """
