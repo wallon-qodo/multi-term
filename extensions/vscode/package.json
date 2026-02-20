@@ -1,0 +1,85 @@
+{
+  "name": "claude-multi-terminal-vscode",
+  "displayName": "Claude Multi-Terminal Integration",
+  "description": "VSCode integration for Claude Multi-Terminal - open files, apply changes, and sync conversations",
+  "version": "0.1.0",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:claude-multi-terminal.openFile",
+    "onCommand:claude-multi-terminal.applyChanges",
+    "onCommand:claude-multi-terminal.syncContext",
+    "onCommand:claude-multi-terminal.jumpToLine"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "claude-multi-terminal.openFile",
+        "title": "Claude: Open File"
+      },
+      {
+        "command": "claude-multi-terminal.applyChanges",
+        "title": "Claude: Apply Changes"
+      },
+      {
+        "command": "claude-multi-terminal.syncContext",
+        "title": "Claude: Sync Context"
+      },
+      {
+        "command": "claude-multi-terminal.jumpToLine",
+        "title": "Claude: Jump to Line"
+      },
+      {
+        "command": "claude-multi-terminal.startServer",
+        "title": "Claude: Start Integration Server"
+      },
+      {
+        "command": "claude-multi-terminal.stopServer",
+        "title": "Claude: Stop Integration Server"
+      }
+    ],
+    "configuration": {
+      "title": "Claude Multi-Terminal",
+      "properties": {
+        "claude-multi-terminal.serverPort": {
+          "type": "number",
+          "default": 8765,
+          "description": "Port for Claude Multi-Terminal integration server"
+        },
+        "claude-multi-terminal.autoStartServer": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically start integration server when VSCode opens"
+        },
+        "claude-multi-terminal.autoSync": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically sync file changes to Claude"
+        },
+        "claude-multi-terminal.highlightChanges": {
+          "type": "boolean",
+          "default": true,
+          "description": "Highlight applied changes in editor"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "pretest": "npm run lint",
+    "test": "node ./test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "^20.x",
+    "eslint": "^8.x"
+  },
+  "dependencies": {
+    "ws": "^8.14.0"
+  }
+}
