@@ -27,6 +27,7 @@ from .persistence.session_state import WorkspaceState, SessionState, WorkspaceDa
 from .types import AppMode
 from .layout.layout_manager import LayoutManager
 from .animations import AnimationHelper, MODE_TRANSITION, WORKSPACE_SWITCH, PANE_FOCUS, OVERLAY_SHOW
+from .visual_feedback import VisualFeedback, ActionIndicator, FeedbackType, feedback_icons, feedback_messages
 
 
 class ClaudeMultiTerminalApp(App):
@@ -130,6 +131,8 @@ class ClaudeMultiTerminalApp(App):
         self.tutorial_overlay = None  # Tutorial overlay widget
         self.theme_manager = ThemeManager(Config.get_config_dir())  # Theme system
         self.theme_selector = None  # Theme selector widget
+        self.visual_feedback = VisualFeedback(self)  # Visual feedback system
+        self.action_indicator = ActionIndicator(self)  # Action indicators
 
     def compose(self) -> ComposeResult:
         """Compose the application layout."""
@@ -1581,7 +1584,9 @@ class ClaudeMultiTerminalApp(App):
         if self.tutorial_mode and self.tutorial.active and self.tutorial_overlay:
             self.tutorial_overlay.handle_mode_change("normal")
 
-        self.notify("Mode: NORMAL", severity="information", timeout=1)
+        # Visual feedback
+        icon = feedback_icons.MODE_NORMAL
+        self.notify(f"{icon} Mode: NORMAL", severity="information", timeout=1)
 
     def enter_insert_mode(self) -> None:
         """Enter INSERT mode - all keys forwarded to active session."""
@@ -1610,7 +1615,9 @@ class ClaudeMultiTerminalApp(App):
         if self.tutorial_mode and self.tutorial.active and self.tutorial_overlay:
             self.tutorial_overlay.handle_mode_change("insert")
 
-        self.notify("Mode: INSERT", severity="information", timeout=1)
+        # Visual feedback
+        icon = feedback_icons.MODE_INSERT
+        self.notify(f"{icon} Mode: INSERT", severity="information", timeout=1)
 
     def enter_copy_mode(self) -> None:
         """Enter COPY mode - scrollback navigation and text selection."""
@@ -1639,7 +1646,9 @@ class ClaudeMultiTerminalApp(App):
         if self.tutorial_mode and self.tutorial.active and self.tutorial_overlay:
             self.tutorial_overlay.handle_mode_change("visual")
 
-        self.notify("Mode: COPY (scrollback navigation)", severity="information", timeout=2)
+        # Visual feedback
+        icon = feedback_icons.MODE_VISUAL
+        self.notify(f"{icon} Mode: COPY (scrollback navigation)", severity="information", timeout=2)
 
     def enter_command_mode(self) -> None:
         """Enter COMMAND mode - prefix key mode (Ctrl+B then action)."""
