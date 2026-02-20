@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Dict, Optional
 from .theme_base import Theme
 from .builtin_themes import BUILTIN_THEMES, DEFAULT_THEME
+from ..polish import PolishStyles, TypographyRefinements, SpatialHierarchy
 
 
 class ThemeManager:
@@ -179,165 +180,48 @@ class ThemeManager:
 
     def generate_css(self, theme: Optional[Theme] = None) -> str:
         """
-        Generate CSS variables for a theme.
+        Generate polished CSS for a theme.
+
+        Includes theme colors, polish refinements, typography, and hierarchy.
 
         Args:
             theme: Theme to generate CSS for (uses current if None)
 
         Returns:
-            str: CSS variable definitions
+            str: Complete CSS with polish applied
         """
         if theme is None:
             theme = self._current_theme
 
         colors = theme.colors
+
+        # Convert colors to dict for polish CSS generator
+        color_dict = colors.to_dict()
+
+        # Generate polished CSS
+        polished_css = PolishStyles.generate_polished_css(color_dict)
+
+        # Add typography refinements
+        typography_css = TypographyRefinements.apply_typography()
+
+        # Add spatial hierarchy
+        hierarchy_css = SpatialHierarchy.apply_hierarchy()
+
+        # Combine all CSS
         css = f"""
-/* Theme: {theme.display_name} */
-Screen {{
-    background: {colors.bg_primary};
-    color: {colors.text_primary};
-}}
+/* =========================================
+   Theme: {theme.display_name}
+   Description: {theme.description}
+   Author: {theme.author}
+   ========================================= */
 
-/* Headers and panels */
-HeaderBar {{
-    background: {colors.bg_header};
-    color: {colors.text_primary};
-}}
+{polished_css}
 
-StatusBar {{
-    background: {colors.bg_header};
-    color: {colors.text_primary};
-}}
+{typography_css}
 
-/* Session panes */
-SessionPane {{
-    background: {colors.bg_secondary};
-    border: solid {colors.border_default};
-}}
+{hierarchy_css}
 
-SessionPane:focus {{
-    border: solid {colors.border_focus};
-}}
-
-/* Input fields */
-Input {{
-    background: {colors.bg_input};
-    color: {colors.text_primary};
-    border: solid {colors.border_default};
-}}
-
-Input:focus {{
-    border: solid {colors.border_focus};
-}}
-
-/* Buttons and widgets */
-Button {{
-    background: {colors.bg_tertiary};
-    color: {colors.text_primary};
-    border: solid {colors.border_default};
-}}
-
-Button:hover {{
-    border: solid {colors.border_hover};
-}}
-
-Button:focus {{
-    border: solid {colors.border_focus};
-    background: {colors.accent_primary};
-    color: {colors.text_bright};
-}}
-
-/* Status indicators */
-.status-active {{
-    color: {colors.status_active};
-}}
-
-.status-inactive {{
-    color: {colors.status_inactive};
-}}
-
-.status-processing {{
-    color: {colors.status_processing};
-}}
-
-.status-error {{
-    color: {colors.status_error};
-}}
-
-/* Toasts and notifications */
-Toast {{
-    background: {colors.bg_tertiary};
-    border: solid {colors.accent_info};
-    color: {colors.text_primary};
-}}
-
-Toast.-information {{
-    background: rgba({self._rgb_to_rgba(colors.accent_info)}, 0.2);
-    border: solid {colors.accent_info};
-}}
-
-Toast.-warning {{
-    background: rgba({self._rgb_to_rgba(colors.accent_warning)}, 0.2);
-    border: solid {colors.accent_warning};
-    color: {colors.accent_warning};
-}}
-
-Toast.-error {{
-    background: rgba({self._rgb_to_rgba(colors.accent_error)}, 0.2);
-    border: solid {colors.accent_error};
-    color: {colors.accent_error};
-}}
-
-/* Selection */
-.selected {{
-    background: {colors.selection_bg};
-    color: {colors.selection_text};
-}}
-
-/* Scrollbars */
-ScrollBar {{
-    background: {colors.bg_secondary};
-}}
-
-ScrollBar Thumb {{
-    background: {colors.border_default};
-}}
-
-ScrollBar Thumb:hover {{
-    background: {colors.border_hover};
-}}
-
-/* Tabs */
-TabBar {{
-    background: {colors.bg_header};
-}}
-
-Tab {{
-    background: {colors.bg_secondary};
-    color: {colors.text_secondary};
-    border: solid {colors.border_subtle};
-}}
-
-Tab:hover {{
-    background: {colors.bg_tertiary};
-}}
-
-Tab.-active {{
-    background: {colors.accent_primary};
-    color: {colors.text_bright};
-    border: solid {colors.accent_primary};
-}}
-
-/* Workspace indicators */
-.workspace-active {{
-    background: {colors.accent_primary};
-    color: {colors.text_bright};
-}}
-
-.workspace-inactive {{
-    background: {colors.bg_tertiary};
-    color: {colors.text_dim};
-}}
+/* ===== END THEME CSS ===== */
 """
         return css
 
