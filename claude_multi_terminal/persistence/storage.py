@@ -29,6 +29,33 @@ from .session_state import WorkspaceState, SessionState, WorkspaceData
 # Configure module logger
 logger = logging.getLogger(__name__)
 
+# Lazy import to avoid circular dependencies
+_archiver = None
+
+
+def _get_archiver(storage_dir: Path):
+    """Get or create archiver instance (lazy initialization).
+
+    Args:
+        storage_dir: Storage directory path
+
+    Returns:
+        SessionArchiver instance
+    """
+    global _archiver
+    if _archiver is None:
+        try:
+            from ..archiver import SessionArchiver
+            _archiver = SessionArchiver(storage_dir=storage_dir)
+            logger.debug("Initialized session archiver")
+        except Exception as e:
+            logger.warning(f"Failed to initialize archiver: {e}")
+            _archiver = None
+    return _archiver
+
+# Lazy loading flag - set to True to enable lazy loading
+LAZY_LOADING_ENABLED = True
+
 
 class SessionStorage:
     """Manages file-based persistence for terminal session state.
@@ -55,7 +82,7 @@ class SessionStorage:
         >>> loaded = storage.load_state()
     """
 
-    def __init__(self, storage_dir: Optional[Path] = None):
+    def __init__(self, storage_dir: Optional[Path] = None, lazy_loading: bool = LAZY_LOADING_ENABLED):
         """Initialize session storage with directory creation.
 
         Creates the storage directory structure if it doesn't exist. Uses
@@ -65,12 +92,14 @@ class SessionStorage:
             storage_dir: Base directory for storage. If None, uses
                 ~/.multi-term/ (default). Directory will be created if it
                 doesn't exist.
+            lazy_loading: Enable lazy loading for improved startup performance
+                (default: True)
 
         Example:
-            >>> # Use default location
+            >>> # Use default location with lazy loading
             >>> storage = SessionStorage()
-            >>> # Use custom location
-            >>> storage = SessionStorage(Path("/tmp/test-sessions"))
+            >>> # Use custom location without lazy loading
+            >>> storage = SessionStorage(Path("/tmp/test-sessions"), lazy_loading=False)
         """
         if storage_dir is None:
             storage_dir = Path.home() / ".multi-term"
@@ -79,12 +108,17 @@ class SessionStorage:
         self.state_file = self.storage_dir / "workspace_state.json"
         self.history_dir = self.storage_dir / "history"
         self.workspaces_file = self.storage_dir / "workspaces.json"
+        self.lazy_loading = lazy_loading
+        self._lazy_loader = None  # Initialized on demand
 
         # Create directory structure
         try:
             self.storage_dir.mkdir(parents=True, exist_ok=True)
             self.history_dir.mkdir(parents=True, exist_ok=True)
-            logger.info(f"Initialized storage at {self.storage_dir}")
+            logger.info(
+                f"Initialized storage at {self.storage_dir} "
+                f"(lazy_loading={'enabled' if lazy_loading else 'disabled'})"
+            )
         except OSError as e:
             logger.error(f"Failed to create storage directories: {e}")
             raise
@@ -594,3 +628,76 @@ class SessionStorage:
         except Exception as e:
             logger.exception(f"Unexpected error loading workspaces: {e}")
             return None
+
+    def get_lazy_loader(self):
+        """Get or create lazy loader instance.
+
+        Returns:
+            LazyLoader instance configured for this storage
+
+        Example:
+            >>> storage = SessionStorage()
+            >>> loader = storage.get_lazy_loader()
+            >>> await loader.initialize(active_workspace_id=1)
+        """
+        if not self.lazy_loading:
+            logger.warning("Lazy loading is disabled for this storage instance")
+            return None
+
+        if self._lazy_loader is None:
+            from ..lazy_loader import LazyLoader
+            self._lazy_loader = LazyLoader(self, cache_size=20)
+            logger.info("Created LazyLoader instance")
+
+        return self._lazy_loader
+
+    def load_workspace_lazy(self, workspace_id: int) -> Optional[WorkspaceData]:
+        """Load single workspace (synchronous wrapper for lazy loading).
+
+        This is a convenience method for synchronous code that needs to load
+        a specific workspace. For async code, use get_lazy_loader() directly.
+
+        Args:
+            workspace_id: Workspace identifier to load
+
+        Returns:
+            WorkspaceData if found, None otherwise
+
+        Example:
+            >>> storage = SessionStorage()
+            >>> workspace = storage.load_workspace_lazy(workspace_id=1)
+        """
+        try:
+            workspaces = self.load_workspaces()
+            if workspaces and workspace_id in workspaces:
+                return workspaces[workspace_id]
+            return None
+        except Exception as e:
+            logger.error(f"Failed to load workspace {workspace_id}: {e}")
+            return None
+
+    def get_workspace_ids(self) -> List[int]:
+        """Get list of all workspace IDs without loading full data.
+
+        Useful for lazy loading initialization - gets IDs without loading
+        all workspace data into memory.
+
+        Returns:
+            List of workspace IDs, empty list on error
+
+        Example:
+            >>> storage = SessionStorage()
+            >>> workspace_ids = storage.get_workspace_ids()
+            >>> print(f"Found {len(workspace_ids)} workspaces")
+        """
+        try:
+            if not self.workspaces_file.exists():
+                return []
+
+            with open(self.workspaces_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                return [int(ws_id) for ws_id in data.keys()]
+
+        except Exception as e:
+            logger.error(f"Failed to get workspace IDs: {e}")
+            return []

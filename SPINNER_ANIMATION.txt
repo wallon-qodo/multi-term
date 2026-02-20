@@ -1,0 +1,165 @@
+Stream Monitor - Spinner Animation Reference
+==============================================
+
+BRAILLE SPINNER FRAMES (10 frames, 10 FPS = 1 second loop)
+-----------------------------------------------------------
+
+Frame 0: ⠋  (Braille U+280B)
+Frame 1: ⠙  (Braille U+2819)
+Frame 2: ⠹  (Braille U+2839)
+Frame 3: ⠸  (Braille U+2838)
+Frame 4: ⠼  (Braille U+283C)
+Frame 5: ⠴  (Braille U+2834)
+Frame 6: ⠦  (Braille U+2826)
+Frame 7: ⠧  (Braille U+2827)
+Frame 8: ⠇  (Braille U+2807)
+Frame 9: ⠏  (Braille U+280F)
+
+
+ANIMATION SEQUENCE (at 10 FPS)
+--------------------------------
+
+t=0.0s:   ⠋ Thinking...
+t=0.1s:   ⠙ Thinking...
+t=0.2s:   ⠹ Thinking...
+t=0.3s:   ⠸ Thinking...
+t=0.4s:   ⠼ Thinking...
+t=0.5s:   ⠴ Thinking...
+t=0.6s:   ⠦ Thinking...
+t=0.7s:   ⠧ Thinking...
+t=0.8s:   ⠇ Thinking...
+t=0.9s:   ⠏ Thinking...
+t=1.0s:   ⠋ Thinking... (repeat)
+
+
+STREAMING STATE PROGRESSION
+----------------------------
+
+Phase 1 - Thinking:
+  ⠋ Thinking...
+  ⠙ Thinking...
+  ⠹ Thinking...
+
+Phase 2 - First tokens arrive (auto-transition):
+  ⠸ 5 tok (15 tok/s)
+  ⠼ 12 tok (22 tok/s)
+  ⠴ 25 tok (35 tok/s)
+
+Phase 3 - Steady streaming:
+  ⠦ 45 tok (42 tok/s)
+  ⠧ 78 tok (48 tok/s)
+  ⠇ 127 tok (52 tok/s)
+  ⠏ 189 tok (55 tok/s)
+  ⠋ 254 tok (58 tok/s)
+  ⠙ 325 tok (60 tok/s)
+
+Phase 4 - Complete:
+  ✓ 500 tok (57 tok/s avg)
+
+
+STATE COLOR CODES (HomebrewTheme)
+----------------------------------
+
+IDLE:      Gray        RGB(150, 150, 150)  #969696
+THINKING:  Yellow      RGB(255, 200, 100)  #FFC864
+STREAMING: Coral-red   RGB(255,  77,  77)  #FF4D4D  ← Primary
+COMPLETE:  Green       RGB(100, 255, 100)  #64FF64
+ERROR:     Red         RGB(255,  50,  50)  #FF3232
+
+
+VISUAL EXAMPLES BY STATE
+-------------------------
+
+[THINKING - Yellow]
+⠋ Thinking...
+
+[STREAMING - Coral-red]
+⠹ 127 tok (45 tok/s)
+
+[COMPLETE - Green]
+✓ 500 tok (52 tok/s avg)
+
+[ERROR - Red]
+✗ Network timeout
+
+
+INTEGRATION EXAMPLE (Terminal Header)
+--------------------------------------
+
+┌─ Terminal 1 ──────────────────────────────────────────┐
+│ ⠹ 127 tok (45 tok/s)                    [claude-opus] │
+│                                                        │
+│ > What is the capital of France?                      │
+│                                                        │
+│ The capital of France is Paris. It has been the       │
+│ nation's capital since...                             │
+│                                                        │
+└────────────────────────────────────────────────────────┘
+
+
+STATUS BAR EXAMPLE
+------------------
+
+[⠹ 127 tok] [2 active] [1,234 total] [Workspace: main]
+
+
+COMPACT INDICATORS
+------------------
+
+Without speed:     ⠹ 127 tok
+With speed:        ⠹ 127 tok (45 tok/s)
+Complete:          ✓ 500 tok (52 tok/s avg)
+Error (compact):   ✗ Error
+
+
+MULTI-STREAM DISPLAY
+--------------------
+
+Terminal 1:  ⠹ 127 tok (45 tok/s)
+Terminal 2:  ⠦ 89 tok (38 tok/s)
+Terminal 3:  ⠋ Thinking...
+Terminal 4:  ✓ 500 tok (52 tok/s avg)
+
+
+CHARACTER SET NOTES
+-------------------
+
+Spinner:   Braille patterns (Unicode block U+2800-U+28FF)
+Complete:  ✓ (Check mark U+2713)
+Error:     ✗ (Ballot X U+2717)
+
+All characters are single-width for consistent alignment.
+
+
+TIMING SPECIFICATIONS
+---------------------
+
+Spinner update:     100ms (10 FPS)
+Speed calculation:  2-second rolling window
+Speed update:       Every token update
+State transition:   Immediate (on update)
+
+
+ACCESSIBILITY
+-------------
+
+- Braille patterns readable by screen readers
+- Color coding supplements, doesn't replace text
+- Clear state indication through symbols
+- Speed information optional (can be disabled)
+
+
+PERFORMANCE
+-----------
+
+Per frame update:   < 0.1ms
+Memory per stream:  ~1KB
+Lock contention:    Minimal
+CPU overhead:       Negligible
+
+
+==============================================
+Implementation: stream_monitor.py (429 lines)
+TUIOS Design: Minimalist, non-intrusive
+Status: Complete ✓
+==============================================

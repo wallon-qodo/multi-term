@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<meta charset='UTF-8'>
+<meta name='viewport' content='width=device-width, initial-scale=1.0'>
+<title>Claude Multi-Terminal - Keyboard Shortcuts</title>
+
+        <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body {
+                font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+                background: #181818;
+                color: #f0f0f0;
+                padding: 2rem;
+                line-height: 1.6;
+            }
+            .container { max-width: 1200px; margin: 0 auto; }
+            h1 {
+                color: #64b4f0;
+                border-bottom: 2px solid #64b4f0;
+                padding-bottom: 0.5rem;
+                margin-bottom: 1rem;
+            }
+            h2 {
+                color: #ffb446;
+                margin-top: 2rem;
+                margin-bottom: 1rem;
+                border-left: 4px solid #ffb446;
+                padding-left: 0.5rem;
+            }
+            h3 {
+                color: #9ac896;
+                margin-top: 1.5rem;
+                margin-bottom: 0.5rem;
+            }
+            table {
+                width: 100%;
+                border-collapse: collapse;
+                margin: 1rem 0;
+                background: #1c1c1c;
+            }
+            th {
+                background: #2a2a2a;
+                color: #64b4f0;
+                padding: 0.75rem;
+                text-align: left;
+                border: 1px solid #3a3a3a;
+            }
+            td {
+                padding: 0.5rem;
+                border: 1px solid #2a2a2a;
+            }
+            tr:hover { background: #242424; }
+            code, .key {
+                background: #2a2a2a;
+                padding: 0.2rem 0.4rem;
+                border-radius: 3px;
+                color: #ff9d76;
+                font-family: 'SF Mono', monospace;
+            }
+            .mode-normal { color: #64b4f0; }
+            .mode-command { color: #ff9d76; }
+            .mode-copy { color: #ffb446; }
+            .mode-insert { color: #9ac896; }
+            .category {
+                display: inline-block;
+                padding: 0.2rem 0.5rem;
+                border-radius: 3px;
+                font-size: 0.85em;
+                background: #2a2a2a;
+                color: #aaa;
+            }
+            .search-box {
+                margin: 1rem 0;
+                padding: 0.75rem;
+                background: #1c1c1c;
+                border: 1px solid #3a3a3a;
+                border-radius: 4px;
+            }
+            #search {
+                width: 100%;
+                padding: 0.5rem;
+                background: #242424;
+                border: 1px solid #3a3a3a;
+                color: #f0f0f0;
+                font-family: inherit;
+                border-radius: 3px;
+            }
+            .tips {
+                background: #1c1c1c;
+                border-left: 4px solid #9ac896;
+                padding: 1rem;
+                margin: 2rem 0;
+            }
+            .tips ul { margin-left: 1.5rem; }
+            .tips li { margin: 0.5rem 0; }
+            @media print {
+                body { background: white; color: black; }
+                table { page-break-inside: avoid; }
+            }
+        </style>
+        
+</head>
+<body>
+<div class='container'>
+<h1>Claude Multi-Terminal - Keyboard Shortcuts</h1>
+<p><em>TUIOS-Inspired Multi-Terminal Interface with Modal Keyboard Control</em></p>
+<div class='search-box'>
+<input type='text' id='search' placeholder='Search shortcuts... (e.g., split, ctrl+b, copy)'>
+</div>
+<h2>Quick Reference</h2>
+<table id='shortcuts-table'>
+<thead><tr>
+<th>Key</th><th>Action</th><th>Mode</th><th>Category</th>
+</tr></thead>
+<tbody>
+<tr>
+<td><code>Esc</code></td>
+<td>Return to NORMAL mode</td>
+<td class='mode-any'>ANY</td>
+<td><span class='category'>Navigation</span></td>
+</tr>
+<tr>
+<td><code>Ctrl+B =</code></td>
+<td>Equalize splits</td>
+<td class='mode-command'>COMMAND</td>
+<td><span class='category'>Layout Operations</span></td>
+</tr>
+<tr>
+<td><code>Ctrl+B [</code></td>
+<td>Increase left/top</td>
+<td class='mode-command'>COMMAND</td>
+<td><span class='category'>Layout Operations</span></td>
+</tr>
+<tr>
+<td><code>Ctrl+B ]</code></td>
+<td>Increase right/bottom</td>
+<td class='mode-command'>COMMAND</td>
+<td><span class='category'>Layout Operations</span></td>
+</tr>
+<tr>
+<td><code>Ctrl+B h</code></td>
+<td>Split horizontal</td>
+<td class='mode-command'>COMMAND</td>
+<td><span class='category'>Layout Operations</span></td>
+</tr>
+<tr>
+<td><code>Ctrl+B l</code></td>
+<td>BSP layout</td>
+<td class='mode-command'>COMMAND</td>
+<td><span class='category'>Layout Operations</span></td>
+</tr>
+<tr>
+<td><code>Ctrl+B r</code></td>
+<td>Rotate split</td>
+<td class='mode-command'>COMMAND</td>
+<td><span class='category'>Layout Operations</span></td>
+</tr>
+<tr>
+<td><code>Ctrl+B s</code></td>
+<td>STACK layout</td>
+<td class='mode-command'>COMMAND</td>
+<td><span class='category'>Layout Operations</span></td>
+</tr>
+<tr>
+<td><code>Ctrl+B t</code></td>
+<td>TAB layout</td>
+<td class='mode-command'>COMMAND</td>
+<td><span class='category'>Layout Operations</span></td>
+</tr>
+<tr>
+<td><code>Ctrl+B v</code></td>
+<td>Split vertical</td>
+<td class='mode-command'>COMMAND</td>
+<td><span class='category'>Layout Operations</span></td>
+</tr>
+<tr>
+<td><code>Ctrl+B n</code></td>
+<td>Next session</td>
+<td class='mode-command'>COMMAND</td>
+<td><span class='category'>Navigation</span></td>
+</tr>
+<tr>
+<td><code>Ctrl+B p</code></td>
+<td>Previous session</td>
+<td class='mode-command'>COMMAND</td>
+<td><span class='category'>Navigation</span></td>
+</tr>
+<tr>
+<td><code>Ctrl+B ?</code></td>
+<td>Show help</td>
+<td class='mode-command'>COMMAND</td>
+<td><span class='category'>System</span></td>
+</tr>
+<tr>
+<td><code>$</code></td>
+<td>End of line</td>
+<td class='mode-copy'>COPY</td>
+<td><span class='category'>Copy Mode</span></td>
+</tr>
+<tr>
+<td><code>0</code></td>
+<td>Start of line</td>
+<td class='mode-copy'>COPY</td>
+<td><span class='category'>Copy Mode</span></td>
+</tr>
+<tr>
+<td><code>G</code></td>
+<td>Bottom of buffer</td>
+<td class='mode-copy'>COPY</td>
+<td><span class='category'>Copy Mode</span></td>
+</tr>
+<tr>
+<td><code>b</code></td>
+<td>Previous word</td>
+<td class='mode-copy'>COPY</td>
+<td><span class='category'>Copy Mode</span></td>
+</tr>
+<tr>
+<td><code>g</code></td>
+<td>Top of buffer</td>
+<td class='mode-copy'>COPY</td>
+<td><span class='category'>Copy Mode</span></td>
+</tr>
+<tr>
+<td><code>h/l</code></td>
+<td>Move left/right</td>
+<td class='mode-copy'>COPY</td>
+<td><span class='category'>Copy Mode</span></td>
+</tr>
+<tr>
+<td><code>j/k</code></td>
+<td>Move down/up</td>
+<td class='mode-copy'>COPY</td>
+<td><span class='category'>Copy Mode</span></td>
+</tr>
+<tr>
+<td><code>v</code></td>
+<td>Visual select</td>
+<td class='mode-copy'>COPY</td>
+<td><span class='category'>Copy Mode</span></td>
+</tr>
+<tr>
+<td><code>w</code></td>
+<td>Next word</td>
+<td class='mode-copy'>COPY</td>
+<td><span class='category'>Copy Mode</span></td>
+</tr>
+<tr>
+<td><code>y</code></td>
+<td>Yank (copy)</td>
+<td class='mode-copy'>COPY</td>
+<td><span class='category'>Copy Mode</span></td>
+</tr>
+<tr>
+<td><code>Esc</code></td>
+<td>Exit COPY mode</td>
+<td class='mode-copy'>COPY</td>
+<td><span class='category'>Navigation</span></td>
+</tr>
+<tr>
+<td><code>/</code></td>
+<td>Search forward</td>
+<td class='mode-copy'>COPY</td>
+<td><span class='category'>Search</span></td>
+</tr>
+<tr>
+<td><code>?</code></td>
+<td>Search backward</td>
+<td class='mode-copy'>COPY</td>
+<td><span class='category'>Search</span></td>
+</tr>
+<tr>
+<td><code>N</code></td>
+<td>Previous match</td>
+<td class='mode-copy'>COPY</td>
+<td><span class='category'>Search</span></td>
+</tr>
+<tr>
+<td><code>n</code></td>
+<td>Next match</td>
+<td class='mode-copy'>COPY</td>
+<td><span class='category'>Search</span></td>
+</tr>
+<tr>
+<td><code>Esc</code></td>
+<td>Return to NORMAL</td>
+<td class='mode-insert'>INSERT</td>
+<td><span class='category'>Navigation</span></td>
+</tr>
+<tr>
+<td><code>(any key)</code></td>
+<td>Pass to terminal</td>
+<td class='mode-insert'>INSERT</td>
+<td><span class='category'>Session Management</span></td>
+</tr>
+<tr>
+<td><code>Ctrl+C</code></td>
+<td>Copy output</td>
+<td class='mode-normal'>NORMAL</td>
+<td><span class='category'>Copy Mode</span></td>
+</tr>
+<tr>
+<td><code>v</code></td>
+<td>Enter COPY mode</td>
+<td class='mode-normal'>NORMAL</td>
+<td><span class='category'>Copy Mode</span></td>
+</tr>
+<tr>
+<td><code>Ctrl+B</code></td>
+<td>COMMAND mode prefix</td>
+<td class='mode-normal'>NORMAL</td>
+<td><span class='category'>Navigation</span></td>
+</tr>
+<tr>
+<td><code>Shift+Tab</code></td>
+<td>Previous pane</td>
+<td class='mode-normal'>NORMAL</td>
+<td><span class='category'>Navigation</span></td>
+</tr>
+<tr>
+<td><code>Tab</code></td>
+<td>Next pane</td>
+<td class='mode-normal'>NORMAL</td>
+<td><span class='category'>Navigation</span></td>
+</tr>
+<tr>
+<td><code>h/j/k/l</code></td>
+<td>Navigate panes (vim)</td>
+<td class='mode-normal'>NORMAL</td>
+<td><span class='category'>Navigation</span></td>
+</tr>
+<tr>
+<td><code>i</code></td>
+<td>Enter INSERT mode</td>
+<td class='mode-normal'>NORMAL</td>
+<td><span class='category'>Navigation</span></td>
+</tr>
+<tr>
+<td><code>n</code></td>
+<td>Next pane</td>
+<td class='mode-normal'>NORMAL</td>
+<td><span class='category'>Navigation</span></td>
+</tr>
+<tr>
+<td><code>p</code></td>
+<td>Previous pane</td>
+<td class='mode-normal'>NORMAL</td>
+<td><span class='category'>Navigation</span></td>
+</tr>
+<tr>
+<td><code>Ctrl+Shift+F</code></td>
+<td>Search</td>
+<td class='mode-normal'>NORMAL</td>
+<td><span class='category'>Search</span></td>
+</tr>
+<tr>
+<td><code>Ctrl+B</code></td>
+<td>Toggle broadcast</td>
+<td class='mode-normal'>NORMAL</td>
+<td><span class='category'>Session Management</span></td>
+</tr>
+<tr>
+<td><code>Ctrl+N</code></td>
+<td>New session</td>
+<td class='mode-normal'>NORMAL</td>
+<td><span class='category'>Session Management</span></td>
+</tr>
+<tr>
+<td><code>Ctrl+R</code></td>
+<td>Rename session</td>
+<td class='mode-normal'>NORMAL</td>
+<td><span class='category'>Session Management</span></td>
+</tr>
+<tr>
+<td><code>Ctrl+Shift+T</code></td>
+<td>Reopen last session</td>
+<td class='mode-normal'>NORMAL</td>
+<td><span class='category'>Session Management</span></td>
+</tr>
+<tr>
+<td><code>Ctrl+W</code></td>
+<td>Close session</td>
+<td class='mode-normal'>NORMAL</td>
+<td><span class='category'>Session Management</span></td>
+</tr>
+<tr>
+<td><code>r</code></td>
+<td>Rename session</td>
+<td class='mode-normal'>NORMAL</td>
+<td><span class='category'>Session Management</span></td>
+</tr>
+<tr>
+<td><code>x</code></td>
+<td>Close session</td>
+<td class='mode-normal'>NORMAL</td>
+<td><span class='category'>Session Management</span></td>
+</tr>
+<tr>
+<td><code>Ctrl+H</code></td>
+<td>History browser</td>
+<td class='mode-normal'>NORMAL</td>
+<td><span class='category'>System</span></td>
+</tr>
+<tr>
+<td><code>Ctrl+Q</code></td>
+<td>Quit application</td>
+<td class='mode-normal'>NORMAL</td>
+<td><span class='category'>System</span></td>
+</tr>
+<tr>
+<td><code>F9</code></td>
+<td>History browser</td>
+<td class='mode-normal'>NORMAL</td>
+<td><span class='category'>System</span></td>
+</tr>
+<tr>
+<td><code>q</code></td>
+<td>Quit application</td>
+<td class='mode-normal'>NORMAL</td>
+<td><span class='category'>System</span></td>
+</tr>
+<tr>
+<td><code>Ctrl+F</code></td>
+<td>Focus mode</td>
+<td class='mode-normal'>NORMAL</td>
+<td><span class='category'>Visual & Display</span></td>
+</tr>
+<tr>
+<td><code>F11</code></td>
+<td>Focus mode</td>
+<td class='mode-normal'>NORMAL</td>
+<td><span class='category'>Visual & Display</span></td>
+</tr>
+<tr>
+<td><code>F2</code></td>
+<td>Toggle mouse</td>
+<td class='mode-normal'>NORMAL</td>
+<td><span class='category'>Visual & Display</span></td>
+</tr>
+<tr>
+<td><code>1-9</code></td>
+<td>Switch workspace</td>
+<td class='mode-normal'>NORMAL</td>
+<td><span class='category'>Workspace Operations</span></td>
+</tr>
+<tr>
+<td><code>Ctrl+L</code></td>
+<td>Load workspace</td>
+<td class='mode-normal'>NORMAL</td>
+<td><span class='category'>Workspace Operations</span></td>
+</tr>
+<tr>
+<td><code>Ctrl+S</code></td>
+<td>Save workspace</td>
+<td class='mode-normal'>NORMAL</td>
+<td><span class='category'>Workspace Operations</span></td>
+</tr>
+<tr>
+<td><code>F10</code></td>
+<td>Workspace manager</td>
+<td class='mode-normal'>NORMAL</td>
+<td><span class='category'>Workspace Operations</span></td>
+</tr>
+<tr>
+<td><code>Shift+1-9</code></td>
+<td>Move session to workspace</td>
+<td class='mode-normal'>NORMAL</td>
+<td><span class='category'>Workspace Operations</span></td>
+</tr>
+</tbody>
+</table>
+<h2>Detailed Guide</h2>
+<h3>NORMAL Mode</h3>
+<h4>Copy Mode</h4>
+<ul>
+<li><code>v</code> - Enter COPY mode - Enter COPY mode for scrollback navigation and selection</li>
+<li><code>Ctrl+C</code> - Copy output - Copy terminal output</li>
+</ul>
+<h4>Navigation</h4>
+<ul>
+<li><code>i</code> - Enter INSERT mode - Switch to INSERT mode for terminal input</li>
+<li><code>Ctrl+B</code> - COMMAND mode prefix - Enter COMMAND mode for advanced operations (2-key sequence)</li>
+<li><code>Esc</code> - Return to NORMAL mode - Exit current mode and return to NORMAL</li>
+<li><code>h/j/k/l</code> - Navigate panes (vim) - Move focus between panes using vim-style keys</li>
+<li><code>Tab</code> - Next pane - Move focus to next pane</li>
+<li><code>Shift+Tab</code> - Previous pane - Move focus to previous pane</li>
+<li><code>n</code> - Next pane - Move to next pane (alternative)</li>
+<li><code>p</code> - Previous pane - Move to previous pane (alternative)</li>
+</ul>
+<h4>Search</h4>
+<ul>
+<li><code>Ctrl+Shift+F</code> - Search - Open search panel</li>
+</ul>
+<h4>Session Management</h4>
+<ul>
+<li><code>Ctrl+N</code> - New session - Create new terminal session</li>
+<li><code>x</code> - Close session - Close current session</li>
+<li><code>Ctrl+W</code> - Close session - Close current session (alternative)</li>
+<li><code>r</code> - Rename session - Rename current session</li>
+<li><code>Ctrl+R</code> - Rename session - Rename current session (alternative)</li>
+<li><code>Ctrl+Shift+T</code> - Reopen last session - Reopen last closed session</li>
+<li><code>Ctrl+B</code> - Toggle broadcast - Toggle broadcast mode (send to all sessions)</li>
+</ul>
+<h4>System</h4>
+<ul>
+<li><code>q</code> - Quit application - Exit the application</li>
+<li><code>Ctrl+Q</code> - Quit application - Exit the application (alternative)</li>
+<li><code>Ctrl+H</code> - History browser - Browse session history</li>
+<li><code>F9</code> - History browser - Browse session history (alternative)</li>
+</ul>
+<h4>Visual & Display</h4>
+<ul>
+<li><code>Ctrl+F</code> - Focus mode - Toggle focus mode (maximize current pane)</li>
+<li><code>F11</code> - Focus mode - Toggle focus mode (alternative)</li>
+<li><code>F2</code> - Toggle mouse - Toggle mouse support (disable for text selection)</li>
+</ul>
+<h4>Workspace Operations</h4>
+<ul>
+<li><code>1-9</code> - Switch workspace - Switch to workspace 1-9</li>
+<li><code>Shift+1-9</code> - Move session to workspace - Move focused session to workspace 1-9</li>
+<li><code>Ctrl+S</code> - Save workspace - Save current workspace state</li>
+<li><code>Ctrl+L</code> - Load workspace - Load saved workspace</li>
+<li><code>F10</code> - Workspace manager - Open workspace management interface</li>
+</ul>
+<h3>COMMAND Mode</h3>
+<h4>Layout Operations</h4>
+<ul>
+<li><code>Ctrl+B h</code> - Split horizontal - Split pane horizontally (top/bottom)</li>
+<li><code>Ctrl+B v</code> - Split vertical - Split pane vertically (left/right)</li>
+<li><code>Ctrl+B r</code> - Rotate split - Rotate split direction</li>
+<li><code>Ctrl+B =</code> - Equalize splits - Equalize all split ratios to 50/50</li>
+<li><code>Ctrl+B [</code> - Increase left/top - Increase left/top pane size by 5%</li>
+<li><code>Ctrl+B ]</code> - Increase right/bottom - Increase right/bottom pane size by 5%</li>
+<li><code>Ctrl+B l</code> - BSP layout - Switch to BSP (tiling) layout mode</li>
+<li><code>Ctrl+B s</code> - STACK layout - Switch to STACK (monocle) layout mode</li>
+<li><code>Ctrl+B t</code> - TAB layout - Switch to TAB (floating) layout mode</li>
+</ul>
+<h4>Navigation</h4>
+<ul>
+<li><code>Esc</code> - Return to NORMAL mode - Exit current mode and return to NORMAL</li>
+<li><code>Ctrl+B n</code> - Next session - Next session in STACK/TAB mode</li>
+<li><code>Ctrl+B p</code> - Previous session - Previous session in STACK/TAB mode</li>
+</ul>
+<h4>System</h4>
+<ul>
+<li><code>Ctrl+B ?</code> - Show help - Display help overlay with all shortcuts</li>
+</ul>
+<h3>COPY Mode</h3>
+<h4>Copy Mode</h4>
+<ul>
+<li><code>j/k</code> - Move down/up - Move cursor down/up by one line</li>
+<li><code>h/l</code> - Move left/right - Move cursor left/right by one character</li>
+<li><code>w</code> - Next word - Move forward by word</li>
+<li><code>b</code> - Previous word - Move backward by word</li>
+<li><code>0</code> - Start of line - Jump to start of line</li>
+<li><code>$</code> - End of line - Jump to end of line</li>
+<li><code>g</code> - Top of buffer - Jump to top of scrollback buffer</li>
+<li><code>G</code> - Bottom of buffer - Jump to bottom of scrollback buffer</li>
+<li><code>v</code> - Visual select - Start visual selection mode</li>
+<li><code>y</code> - Yank (copy) - Copy selection to clipboard and exit COPY mode</li>
+</ul>
+<h4>Navigation</h4>
+<ul>
+<li><code>Esc</code> - Return to NORMAL mode - Exit current mode and return to NORMAL</li>
+<li><code>Esc</code> - Exit COPY mode - Return to NORMAL mode</li>
+</ul>
+<h4>Search</h4>
+<ul>
+<li><code>/</code> - Search forward - Search forward in scrollback</li>
+<li><code>?</code> - Search backward - Search backward in scrollback</li>
+<li><code>n</code> - Next match - Jump to next search match</li>
+<li><code>N</code> - Previous match - Jump to previous search match</li>
+</ul>
+<h3>INSERT Mode</h3>
+<h4>Navigation</h4>
+<ul>
+<li><code>Esc</code> - Return to NORMAL mode - Exit current mode and return to NORMAL</li>
+<li><code>Esc</code> - Return to NORMAL - Exit INSERT mode and return to NORMAL</li>
+</ul>
+<h4>Session Management</h4>
+<ul>
+<li><code>(any key)</code> - Pass to terminal - All other keys pass through to terminal</li>
+</ul>
+<div class='tips'>
+<h3>Tips & Tricks</h3>
+<ul>
+<li><strong>Modal Design:</strong> Based on vim/tmux principles - distinct modes for different tasks</li>
+<li><strong>Ctrl+B Prefix:</strong> Command mode uses 2-key sequences (press Ctrl+B, then command key)</li>
+<li><strong>ESC Key:</strong> Always returns to NORMAL mode from any mode</li>
+<li><strong>Vim Keys:</strong> h/j/k/l navigation supported throughout</li>
+<li><strong>Text Selection:</strong> F2 toggles mouse support (disable for terminal text selection)</li>
+</ul>
+</div>
+</div>
+<script>
+const searchInput = document.getElementById('search');
+const table = document.getElementById('shortcuts-table');
+const rows = table.getElementsByTagName('tbody')[0].getElementsByTagName('tr');
+
+searchInput.addEventListener('input', function() {
+  const query = this.value.toLowerCase();
+  for (let row of rows) {
+    const text = row.textContent.toLowerCase();
+    row.style.display = text.includes(query) ? '' : 'none';
+  }
+});
+</script>
+</body>
+</html>

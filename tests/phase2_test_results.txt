@@ -1,0 +1,56 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.14.2, pytest-9.0.2, pluggy-1.6.0 -- /Users/wallonwalusayi/claude-multi-terminal/venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /Users/wallonwalusayi/claude-multi-terminal
+configfile: pyproject.toml
+plugins: anyio-4.12.1, asyncio-1.3.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 45 items
+
+tests/test_workspaces.py::TestLayoutMode::test_layout_mode_values PASSED [  2%]
+tests/test_workspaces.py::TestLayoutMode::test_layout_mode_comparison PASSED [  4%]
+tests/test_workspaces.py::TestWorkspace::test_workspace_creation_default PASSED [  6%]
+tests/test_workspaces.py::TestWorkspace::test_workspace_creation_custom PASSED [  8%]
+tests/test_workspaces.py::TestWorkspace::test_workspace_id_validation PASSED [ 11%]
+tests/test_workspaces.py::TestWorkspace::test_add_session PASSED         [ 13%]
+tests/test_workspaces.py::TestWorkspace::test_add_duplicate_session PASSED [ 15%]
+tests/test_workspaces.py::TestWorkspace::test_remove_session PASSED      [ 17%]
+tests/test_workspaces.py::TestWorkspace::test_remove_nonexistent_session PASSED [ 20%]
+tests/test_workspaces.py::TestWorkspace::test_remove_focused_session PASSED [ 22%]
+tests/test_workspaces.py::TestWorkspace::test_remove_last_session_clears_focus PASSED [ 24%]
+tests/test_workspaces.py::TestWorkspace::test_set_focus PASSED           [ 26%]
+tests/test_workspaces.py::TestWorkspace::test_set_focus_invalid_session PASSED [ 28%]
+tests/test_workspaces.py::TestWorkspace::test_clear_focus PASSED         [ 31%]
+tests/test_workspaces.py::TestWorkspace::test_set_layout_mode PASSED     [ 33%]
+tests/test_workspaces.py::TestWorkspace::test_is_empty PASSED            [ 35%]
+tests/test_workspaces.py::TestWorkspace::test_update_modified_time PASSED [ 37%]
+tests/test_workspaces.py::TestWorkspaceManager::test_manager_initialization PASSED [ 40%]
+tests/test_workspaces.py::TestWorkspaceManager::test_create_workspace PASSED [ 42%]
+tests/test_workspaces.py::TestWorkspaceManager::test_create_workspace_invalid_id PASSED [ 44%]
+tests/test_workspaces.py::TestWorkspaceManager::test_get_workspace PASSED [ 46%]
+tests/test_workspaces.py::TestWorkspaceManager::test_get_active_workspace PASSED [ 48%]
+tests/test_workspaces.py::TestWorkspaceManager::test_switch_to_workspace PASSED [ 51%]
+tests/test_workspaces.py::TestWorkspaceManager::test_rename_workspace PASSED [ 53%]
+tests/test_workspaces.py::TestWorkspaceManager::test_rename_nonexistent_workspace PASSED [ 55%]
+tests/test_workspaces.py::TestWorkspaceManager::test_add_session_to_workspace PASSED [ 57%]
+tests/test_workspaces.py::TestWorkspaceManager::test_add_session_auto_focus PASSED [ 60%]
+tests/test_workspaces.py::TestWorkspaceManager::test_add_session_to_nonexistent_workspace PASSED [ 62%]
+tests/test_workspaces.py::TestWorkspaceManager::test_remove_session_from_workspace PASSED [ 64%]
+tests/test_workspaces.py::TestWorkspaceManager::test_remove_session_nonexistent PASSED [ 66%]
+tests/test_workspaces.py::TestWorkspaceManager::test_move_session PASSED [ 68%]
+tests/test_workspaces.py::TestWorkspaceManager::test_move_session_auto_focus_destination PASSED [ 71%]
+tests/test_workspaces.py::TestWorkspaceManager::test_move_session_invalid_workspace PASSED [ 73%]
+tests/test_workspaces.py::TestWorkspaceManager::test_move_nonexistent_session PASSED [ 75%]
+tests/test_workspaces.py::TestWorkspaceManager::test_get_session_workspace PASSED [ 77%]
+tests/test_workspaces.py::TestWorkspaceManager::test_list_workspaces PASSED [ 80%]
+tests/test_workspaces.py::TestWorkspaceManager::test_get_workspace_session_count PASSED [ 82%]
+tests/test_workspaces.py::TestWorkspaceManager::test_clear_workspace PASSED [ 84%]
+tests/test_workspaces.py::TestWorkspaceManager::test_clear_nonexistent_workspace PASSED [ 86%]
+tests/test_workspaces.py::TestWorkspaceManager::test_set_workspace_layout PASSED [ 88%]
+tests/test_workspaces.py::TestWorkspaceManager::test_set_layout_nonexistent_workspace PASSED [ 91%]
+tests/test_workspaces.py::TestWorkspaceIntegration::test_multiple_workspaces_with_sessions PASSED [ 93%]
+tests/test_workspaces.py::TestWorkspaceIntegration::test_session_lifecycle_across_workspaces PASSED [ 95%]
+tests/test_workspaces.py::TestWorkspaceIntegration::test_focus_management_complex PASSED [ 97%]
+tests/test_workspaces.py::TestWorkspaceIntegration::test_workspace_switch_preserves_state PASSED [100%]
+
+============================== 45 passed in 0.16s ==============================

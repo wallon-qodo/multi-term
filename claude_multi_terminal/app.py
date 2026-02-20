@@ -1,10 +1,13 @@
 """Main application orchestrating the multi-terminal interface."""
 
+import logging
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.widgets import Input
 from textual.events import Key
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 from .core.session_manager import SessionManager
 from .core.clipboard import ClipboardManager
@@ -133,6 +136,7 @@ class ClaudeMultiTerminalApp(App):
         self.theme_selector = None  # Theme selector widget
         self.visual_feedback = VisualFeedback(self)  # Visual feedback system
         self.action_indicator = ActionIndicator(self)  # Action indicators
+        self.lazy_loader = None  # Lazy loader for sessions (initialized on mount)
 
     def compose(self) -> ComposeResult:
         """Compose the application layout."""
@@ -152,13 +156,35 @@ class ClaudeMultiTerminalApp(App):
 
     async def on_mount(self) -> None:
         """Initialize the application with default sessions or restore workspace."""
+        import time
+        startup_start = time.time()
+
         # Initialize current workspace (Phase 3)
         self.current_workspace_id = 1
 
-        # Load saved workspaces if they exist
-        loaded_workspaces = self.storage.load_workspaces()
-        if loaded_workspaces:
-            self.workspaces = loaded_workspaces
+        # Initialize lazy loader if enabled
+        if self.storage.lazy_loading:
+            self.lazy_loader = self.storage.get_lazy_loader()
+            if self.lazy_loader:
+                # Initialize with active workspace only (fast startup)
+                logger.info("Initializing with lazy loading...")
+                active_workspace = await self.lazy_loader.initialize(
+                    active_workspace_id=self.current_workspace_id
+                )
+
+                # Log startup time
+                startup_time = (time.time() - startup_start) * 1000
+                logger.info(f"Lazy loading initialized in {startup_time:.1f}ms")
+
+                # Load workspaces from lazy loader if available
+                if active_workspace:
+                    self.workspaces = {self.current_workspace_id: active_workspace}
+        else:
+            # Traditional loading - load all workspaces at startup
+            logger.info("Loading all workspaces (lazy loading disabled)...")
+            loaded_workspaces = self.storage.load_workspaces()
+            if loaded_workspaces:
+                self.workspaces = loaded_workspaces
 
         # Try to load saved workspace first
         state = self.storage.load_state()
