@@ -98,6 +98,7 @@ class ClaudeMultiTerminalApp(App):
         from .config import config
         from .streaming.stream_monitor import StreamMonitor
         from .streaming.token_tracker import TokenTracker
+        from .tutorial import Tutorial
 
         self.session_manager = SessionManager(claude_path=config.CLAUDE_PATH)
         self.stream_monitor = StreamMonitor()
@@ -115,6 +116,9 @@ class ClaudeMultiTerminalApp(App):
         self.current_workspace_id = None  # Track active workspace
         self.layout_manager = LayoutManager()  # Phase 3: Layout management
         self.help_overlay = None  # Phase 5: Lazy-load help overlay when needed
+        self.tutorial_mode = False  # Tutorial mode for first-time users
+        self.tutorial = Tutorial()  # Tutorial system
+        self.tutorial_overlay = None  # Tutorial overlay widget
 
     def compose(self) -> ComposeResult:
         """Compose the application layout."""
@@ -124,6 +128,13 @@ class ClaudeMultiTerminalApp(App):
         yield StatusBar()
         yield FooterHints()  # Phase 5: Contextual keyboard hints
         yield SearchPanel(id="search-panel")
+
+        # Tutorial overlay (if tutorial mode is enabled)
+        if self.tutorial_mode:
+            from .widgets.tutorial_overlay import TutorialOverlay
+            self.tutorial.start()
+            self.tutorial_overlay = TutorialOverlay(self.tutorial)
+            yield self.tutorial_overlay
 
     async def on_mount(self) -> None:
         """Initialize the application with default sessions or restore workspace."""
@@ -681,9 +692,17 @@ class ClaudeMultiTerminalApp(App):
         """Focus next session pane."""
         self.screen.focus_next()
 
+        # Notify tutorial of pane switch
+        if self.tutorial_mode and self.tutorial.active and self.tutorial_overlay:
+            self.tutorial_overlay.handle_action("pane_switch")
+
     async def action_prev_pane(self) -> None:
         """Focus previous session pane."""
         self.screen.focus_previous()
+
+        # Notify tutorial of pane switch
+        if self.tutorial_mode and self.tutorial.active and self.tutorial_overlay:
+            self.tutorial_overlay.handle_action("pane_switch")
 
     async def action_toggle_search(self) -> None:
         """Toggle global search panel."""
@@ -711,6 +730,10 @@ class ClaudeMultiTerminalApp(App):
             # Enter focus mode - show only the focused session
             self.focused_session_id = focused_pane.session_id
             await grid.set_focus_mode(self.focused_session_id, True)
+
+            # Notify tutorial of mode change
+            if self.tutorial_mode and self.tutorial.active and self.tutorial_overlay:
+                self.tutorial_overlay.handle_mode_change("focus")
 
             self.notify(
                 f"🎯 Focus mode: {focused_pane.session_name} (Press F11 to exit)",
@@ -979,6 +1002,11 @@ class ClaudeMultiTerminalApp(App):
 
         if success:
             workspace_name = self.workspace_controller.get_workspace_name(workspace_num)
+
+            # Notify tutorial of workspace switch
+            if self.tutorial_mode and self.tutorial.active and self.tutorial_overlay:
+                self.tutorial_overlay.handle_action("workspace_switch")
+
             self.notify(
                 f"Switched to Workspace {workspace_num}: {workspace_name}",
                 severity="information",
@@ -1513,6 +1541,10 @@ class ClaudeMultiTerminalApp(App):
         except:
             pass
 
+        # Notify tutorial of mode change
+        if self.tutorial_mode and self.tutorial.active and self.tutorial_overlay:
+            self.tutorial_overlay.handle_mode_change("normal")
+
         self.notify("Mode: NORMAL", severity="information", timeout=1)
 
     def enter_insert_mode(self) -> None:
@@ -1529,6 +1561,10 @@ class ClaudeMultiTerminalApp(App):
         except:
             pass
 
+        # Notify tutorial of mode change
+        if self.tutorial_mode and self.tutorial.active and self.tutorial_overlay:
+            self.tutorial_overlay.handle_mode_change("insert")
+
         self.notify("Mode: INSERT", severity="information", timeout=1)
 
     def enter_copy_mode(self) -> None:
@@ -1544,6 +1580,10 @@ class ClaudeMultiTerminalApp(App):
             footer.current_mode = AppMode.COPY
         except:
             pass
+
+        # Notify tutorial of mode change
+        if self.tutorial_mode and self.tutorial.active and self.tutorial_overlay:
+            self.tutorial_overlay.handle_mode_change("visual")
 
         self.notify("Mode: COPY (scrollback navigation)", severity="information", timeout=2)
 
@@ -1576,6 +1616,21 @@ class ClaudeMultiTerminalApp(App):
         ESC always returns to NORMAL mode.
         'i' or Enter in NORMAL → INSERT mode.
         """
+        # Tutorial mode: intercept keys for tutorial
+        if self.tutorial_mode and self.tutorial.active and self.tutorial_overlay:
+            # Check for skip tutorial shortcut (Ctrl+Shift+Q)
+            if event.key == "ctrl+shift+q":
+                self.tutorial_overlay.skip_tutorial()
+                self.tutorial_mode = False
+                self.notify("Tutorial skipped", severity="information")
+                event.stop()
+                return
+
+            # Let tutorial handle the key
+            if self.tutorial_overlay.handle_key(event.key):
+                event.stop()
+                return
+
         # ESC always returns to NORMAL mode
         if event.key == "escape":
             self.enter_normal_mode()

@@ -42,17 +42,26 @@ Claude Multi-Terminal brings powerful window management and multi-session capabi
 
 ### Prerequisites
 - Python 3.10 or higher
-- Claude CLI installed and configured
+- Claude CLI installed and configured (`npm install -g @anthropics/claude-cli`)
+
+### One-Line Install (Recommended)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/wallon-qodo/multi-term/main/install.sh | bash
+```
+
+### Install from PyPI
+
+```bash
+pip install claude-multi-terminal
+```
 
 ### Install from source
 
 ```bash
 # Clone the repository
-git clone https://github.com/wallonwalusayi/claude-multi-terminal.git
-cd claude-multi-terminal
-
-# Install dependencies
-pip install -r requirements.txt
+git clone https://github.com/wallon-qodo/multi-term.git
+cd multi-term
 
 # Install the package
 pip install -e .
@@ -64,6 +73,12 @@ pip install -e .
 pip install -e ".[dev]"
 ```
 
+### Homebrew (Coming Soon)
+
+```bash
+brew install claude-multi-terminal
+```
+
 ## Quick Start
 
 ### Launch the application
@@ -72,32 +87,100 @@ pip install -e ".[dev]"
 multi-term
 ```
 
+### First-Time Tutorial
+
+Run the interactive 2-minute tutorial:
+
+```bash
+multi-term --tutorial
+```
+
 ### Basic Usage
 
-1. **Create a new session**: Press `Ctrl+N` or click the "New Session" button
-2. **Switch between sessions**: Use `Ctrl+1` through `Ctrl+9` or click session tabs
-3. **Split windows**: Press `Ctrl+H` (horizontal) or `Ctrl+V` (vertical)
-4. **Close sessions**: Press `Ctrl+W` or click the close button on a session tab
-5. **Quit application**: Press `Ctrl+Q`
+The app uses **vim-style modes** (like vim/tmux):
+
+1. **NORMAL Mode** (⌘) - Default, navigate and control
+   - Press `i` to enter INSERT mode
+   - Press `v` to enter VISUAL mode
+   - Press `F11` for FOCUS mode
+
+2. **INSERT Mode** (✏️) - Type prompts to Claude
+   - Type your message
+   - Press `Enter` to send
+   - Press `Esc` to return to NORMAL
+
+3. **VISUAL Mode** (📋) - Copy text
+   - Use arrow keys to select
+   - Press `Enter` to copy
+   - Press `Esc` to return to NORMAL
+
+4. **FOCUS Mode** (🎯) - Fullscreen single pane
+   - Press `F11` to toggle
+
+### Workspaces
+
+You have **9 workspaces** (like virtual desktops):
+- Press `Ctrl+1` through `Ctrl+9` to switch
+- Organize by project, task, or priority
+- Each workspace holds up to 4 panes
 
 ## Keybindings
 
+### Essential Keys
+- `i` - Enter INSERT mode (type prompts)
+- `v` - Enter VISUAL mode (copy text)
+- `F11` - Toggle FOCUS mode (fullscreen)
+- `Esc` - Return to NORMAL mode
+- `q` - Quit application
+
+### Navigation
+- `Tab` - Next pane
+- `Shift+Tab` - Previous pane
+- `Ctrl+1-9` - Switch to workspace 1-9
+- `Ctrl+N` / `Ctrl+P` - Next/Previous workspace
+
 ### Session Management
-- `Ctrl+N`: Create new session
-- `Ctrl+W`: Close current session
-- `Ctrl+1-9`: Switch to session 1-9
-- `Ctrl+Tab`: Next session
-- `Ctrl+Shift+Tab`: Previous session
+- `Ctrl+N` - Create new session
+- `Ctrl+W` - Close current session
+- `Ctrl+S` - Save sessions
+- `Ctrl+L` - Load sessions
 
-### Window Management
-- `Ctrl+H`: Split horizontally
-- `Ctrl+V`: Split vertically
-- `Ctrl+Arrow`: Navigate between windows
-- `Ctrl+Shift+Arrow`: Swap windows
-- `Ctrl+R`: Rotate window layout
+### Advanced
+- `Ctrl+F` / `F11` - Toggle focus mode
+- `Ctrl+Shift+F` - Search
+- `F10` - Workspace manager
+- `F9` / `Ctrl+H` - History browser
+- `?` - Show help (in NORMAL mode)
 
-### Terminal Operations
-- `Ctrl+C`: Copy selected text
+## Documentation
+
+📚 **Comprehensive guides available in [`docs/`](docs/)**:
+
+- **[USER-GUIDE.md](docs/USER-GUIDE.md)** - Complete 30+ page user guide
+  - Getting started tutorials
+  - Modal system explained
+  - Best practices
+  - Common workflows
+  - Advanced features
+  - Troubleshooting
+
+- **[QUICK-REFERENCE.md](docs/QUICK-REFERENCE.md)** - One-page cheat sheet
+  - Essential keyboard shortcuts
+  - Common patterns
+  - Quick troubleshooting
+
+- **[README.md](docs/README.md)** - Documentation index and learning path
+
+## Command-Line Options
+
+```bash
+multi-term --help          # Show help message
+multi-term --version       # Show version
+multi-term --tutorial      # Launch interactive tutorial
+multi-term --check         # Validate environment
+multi-term --no-mouse      # Disable mouse (enable text selection)
+multi-term --debug         # Enable debug logging
+```
 - `Ctrl+Shift+V`: Paste from clipboard
 - `Scroll`: Navigate terminal history
 - `Ctrl+L`: Clear terminal
