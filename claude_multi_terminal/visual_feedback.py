@@ -7,7 +7,8 @@ icons, colors, progress indicators, and animations.
 
 from typing import Optional, Callable
 from textual.app import App
-from textual.widgets import Widget, Static, Label
+from textual.widget import Widget
+from textual.widgets import Static, Label
 from textual.containers import Container, Horizontal
 from rich.text import Text
 from dataclasses import dataclass

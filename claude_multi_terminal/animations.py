@@ -6,7 +6,7 @@ Provides easing functions and animation utilities for the TUI.
 
 from typing import Callable, Optional
 from textual.app import App
-from textual.widgets import Widget
+from textual.widget import Widget
 from textual import on
 from textual.reactive import reactive
 import math
